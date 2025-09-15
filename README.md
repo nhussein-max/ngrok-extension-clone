@@ -8,6 +8,7 @@ This Python script performs basic linting on JSON annotation files used in label
 It loads `input.json` from the same directory and outputs errors or a success message for each entry (handles single objects or arrays).
 
 ## How to Obtain input.json
+
 - Open the task in Google Chrome.
 - Open DevTools (F12 or right-click > Inspect), go to the Network tab.
 - Refresh the page, if Network tab is empty.

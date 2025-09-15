@@ -94,6 +94,14 @@ def lint_annotation(json_data):
                         for col in range(num_cols):
                             ar_val = ar_cells[row][col]
                             mi_list = mi_cells[row][col]
+                            
+                            # Check if "no_issues" is mixed with other issues
+                            if "no_issues" in mi_list and len(mi_list) > 1:
+                                row_h = aspect_ratings['rowHeaders'][row]
+                                col_h = col_headers[col]
+                                issue_str = ', '.join(mi_list)
+                                errors.append(f"For {row_h} in {col_h}: 'no_issues' cannot be combined with other issues. Found: '{issue_str}'")
+                            
                             has_issue_here = mi_list != ["no_issues"]
                             if has_issue_here and ar_val == "0":
                                 row_h = aspect_ratings['rowHeaders'][row]
