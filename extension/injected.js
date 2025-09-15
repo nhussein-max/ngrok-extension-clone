@@ -29,9 +29,17 @@
             try {
                 const data = await clonedResponse.json();
                 
+                // Handle both single annotations and arrays (history endpoint)
+                let annotationData = data;
+                if (Array.isArray(data) && data.length > 0) {
+                    // Use the last annotation from the array (most recent)
+                    annotationData = data[data.length - 1];
+                    console.log('L1 Annotation Linter: Found annotation array, using last entry');
+                }
+                
                 // Check if this looks like annotation data
-                if (data && typeof data === 'object' && 
-                    ('base_response' in data || 'responses' in data || 'model_issues' in data)) {
+                if (annotationData && typeof annotationData === 'object' && 
+                    ('base_response' in annotationData || 'responses' in annotationData || 'model_issues' in annotationData)) {
                     
                     console.log('L1 Annotation Linter: Found annotation data');
                     
@@ -39,7 +47,7 @@
                     setTimeout(() => {
                         window.postMessage({
                             type: 'ANNOTATION_DATA',
-                            data: data,
+                            data: annotationData,
                             url: url
                         }, '*');
                     }, 100);
@@ -67,15 +75,24 @@
             this.onload = function(e) {
                 try {
                     const data = JSON.parse(this.responseText);
-                    if (data && typeof data === 'object' && 
-                        ('base_response' in data || 'responses' in data || 'model_issues' in data)) {
+                    
+                    // Handle both single annotations and arrays (history endpoint)
+                    let annotationData = data;
+                    if (Array.isArray(data) && data.length > 0) {
+                        // Use the last annotation from the array (most recent)
+                        annotationData = data[data.length - 1];
+                        console.log('L1 Annotation Linter: Found annotation array via XHR, using last entry');
+                    }
+                    
+                    if (annotationData && typeof annotationData === 'object' && 
+                        ('base_response' in annotationData || 'responses' in annotationData || 'model_issues' in annotationData)) {
                         
                         console.log('L1 Annotation Linter: Found annotation data via XHR');
                         
                         setTimeout(() => {
                             window.postMessage({
                                 type: 'ANNOTATION_DATA',
-                                data: data,
+                                data: annotationData,
                                 url: this._url
                             }, '*');
                         }, 100);
