@@ -1,4 +1,5 @@
 ## Overview
+
 This Python script performs basic linting on JSON annotation files used in labeling tasks (e.g., via Starfleet). It checks for:
 - Mismatches between `aspect_ratings` and `model_issues` tables.
 - Inconsistencies in base response ratings (e.g., rating 7 with issues present).
