@@ -228,25 +228,27 @@ function lintAnnotation(jsonData) {
         }
         
         if (Object.keys(items).length > 0) {
-            // Sort by score descending (best to worst), ties not broken
-            const ordered = Object.keys(items).sort((a, b) => items[b][0] - items[a][0]);
+            // Only compare non-A responses to response A (deactivate comparisons between non-A responses)
+            const aScore = items['A'][0];
+            const aIssue = items['A'][1];
             
-            // Check for inconsistencies
-            for (let i = 0; i < ordered.length; i++) {
-                for (let j = i + 1; j < ordered.length; j++) {
-                    const higher = ordered[i];
-                    const lower = ordered[j];
-                    const higherScore = items[higher][0];
-                    const lowerScore = items[lower][0];
-                    const higherIssue = items[higher][1];
-                    const lowerIssue = items[lower][1];
-                    if (higherScore > lowerScore) {
-                        if (higherIssue && !lowerIssue) {
-                            errors.push(`Inconsistent preference: Response ${higher} (with issue) preferred over Response ${lower} (no issue).`);
+            // Check for inconsistencies only between A and other responses
+            for (const [response, responseData] of Object.entries(items)) {
+                if (response !== 'A') {
+                    const responseScore = responseData[0];
+                    const responseIssue = responseData[1];
+                    
+                    if (responseScore > aScore) {
+                        if (responseIssue && !aIssue) {
+                            errors.push(`Inconsistent preference: Response ${response} (with issue) preferred over Response A (no issue).`);
                         }
-                    } else if (higherScore === lowerScore) {
-                        if (higherIssue !== lowerIssue) {
-                            errors.push(`Inconsistent preference: Response ${higher} (${higherIssue ? 'with' : 'no'} issue) tied with Response ${lower} (${lowerIssue ? 'with' : 'no'} issue).`);
+                    } else if (responseScore < aScore) {
+                        if (!responseIssue && aIssue) {
+                            errors.push(`Inconsistent preference: Response A (with issue) preferred over Response ${response} (no issue).`);
+                        }
+                    } else if (responseScore === aScore) {
+                        if (responseIssue !== aIssue) {
+                            errors.push(`Inconsistent preference: Response ${response} (${responseIssue ? 'with' : 'no'} issue) tied with Response A (${aIssue ? 'with' : 'no'} issue).`);
                         }
                     }
                 }
