@@ -1,3 +1,5 @@
 input.json
 .DS_Store
 __pycache__/
+*/node_modules
+node_modules

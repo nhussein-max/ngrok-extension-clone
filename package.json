@@ -1,0 +1,15 @@
+{
+  "name": "l1-annotation-linter",
+  "version": "1.0.0",
+  "description": "Real-time linting for JSON annotation files used in ML model evaluation tasks",
+  "scripts": {
+    "build": "web-ext build --source-dir . --artifacts-dir dist",
+    "lint": "web-ext lint --source-dir ."
+  },
+  "keywords": ["annotation", "linter", "ml", "validation", "chrome-extension"],
+  "author": "mbasaran@teachx.ai",
+  "license": "MIT",
+  "devDependencies": {
+    "web-ext": "^8.2.0"
+  }
+}
