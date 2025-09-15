@@ -4,6 +4,7 @@ This Python script performs basic linting on JSON annotation files used in label
 - Mismatches between `aspect_ratings` and `model_issues` tables.
 - Inconsistencies in base response ratings (e.g., rating 7 with issues present).
 - Preference consistency with issues (e.g., no preferring a response with issues over one without).
+- Cannot have an issue and "No Issues" chosen simultanously on model issues table.
 
 It loads `input.json` from the same directory and outputs errors or a success message for each entry (handles single objects or arrays).
 
