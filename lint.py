@@ -103,12 +103,12 @@ def lint_annotation(json_data):
                                 errors.append(f"For {row_h} in {col_h}: 'no_issues' cannot be combined with other issues. Found: '{issue_str}'")
                             
                             has_issue_here = mi_list != ["no_issues"]
-                            if has_issue_here and ar_val == "0":
+                            if has_issue_here and (ar_val == "0" or ar_val == "n/a"):
                                 row_h = aspect_ratings['rowHeaders'][row]
                                 col_h = col_headers[col]
                                 issue_str = ', '.join(mi_list)
                                 errors.append(f"For {row_h} in {col_h}: Issue '{issue_str}' is chosen in Model Issues table, but Aspect Ratings is set to \"{rating_text(ar_val)}\". There is mismatch between tables.")
-                            elif not has_issue_here and ar_val != "0":
+                            elif not has_issue_here and (ar_val != "0" and ar_val != "n/a"):
                                 row_h = aspect_ratings['rowHeaders'][row]
                                 col_h = col_headers[col]
                                 errors.append(f"For {row_h} in {col_h}: No issue chosen in Model Issues table, but Aspect Ratings is set to \"{rating_text(ar_val)}\". There is mismatch between tables.")
