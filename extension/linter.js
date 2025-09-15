@@ -23,12 +23,14 @@ function getScore(pref) {
             throw new Error(`Invalid preference side: ${side}`);
         }
     } else {
-        if (pref === 'b') {
-            return 0;
-        } else if (pref === 'a') {
-            return 0;
+        const side = pref;
+        const level = 0;
+        if (side === 'b') {
+            return level;
+        } else if (side === 'a') {
+            return -level;
         } else {
-            throw new Error(`Invalid preference side: ${pref}`);
+            throw new Error(`Invalid preference side: ${side}`);
         }
     }
 }

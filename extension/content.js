@@ -96,18 +96,16 @@ function displayLintResults(errors, success) {
                 <span style="color: #28a745; margin-right: 8px;">✅</span>
                 <strong>Annotation Valid</strong>
             </div>
-            <div>No issues found in the annotation data.</div>
+            <div style="font-family: monospace; font-size: 13px;">No issues found.</div>
         `;
     } else {
-        const errorList = errors.map(error => `<li style="margin: 4px 0;">${error}</li>`).join('');
+        const errorList = errors.map(error => `- ${error}`).join('\n');
         notification.innerHTML = `
             <div style="display: flex; align-items: center; margin-bottom: 8px;">
                 <span style="color: #dc3545; margin-right: 8px;">❌</span>
-                <strong>Annotation Issues Found (${errors.length})</strong>
+                <strong>Issues Found (${errors.length})</strong>
             </div>
-            <ul style="margin: 0; padding-left: 20px;">
-                ${errorList}
-            </ul>
+            <pre style="font-family: monospace; font-size: 11px; margin: 0; white-space: pre-wrap; max-height: 200px; overflow-y: auto;">${errorList}</pre>
         `;
     }
     

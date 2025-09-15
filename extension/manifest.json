@@ -5,7 +5,8 @@
   "description": "Real-time linting for JSON annotation files used in ML model evaluation tasks",
   "permissions": [
     "activeTab",
-    "storage"
+    "storage",
+    "downloads"
   ],
   "host_permissions": [
     "http://*/*",

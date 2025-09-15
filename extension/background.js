@@ -12,14 +12,24 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             const errors = lintAnnotation(message.data);
             const success = errors.length === 0;
             
-            // Store latest results
+            // Store latest results per tab
+            const tabKey = `lintResults_${sender.tab.id}`;
             chrome.storage.local.set({
+                [tabKey]: {
+                    errors: errors,
+                    success: success,
+                    timestamp: Date.now(),
+                    url: message.url,
+                    data: message.data,
+                    tabId: sender.tab.id
+                },
                 lastLintResults: {
                     errors: errors,
                     success: success,
                     timestamp: Date.now(),
                     url: message.url,
-                    data: message.data
+                    data: message.data,
+                    tabId: sender.tab.id
                 }
             });
             
@@ -63,12 +73,22 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true; // Keep the message channel open for async response
 });
 
-// Clear badge when tab is updated
+// Clear badge and tab-specific data when tab is updated
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     if (changeInfo.status === 'loading') {
         chrome.action.setBadgeText({
             text: '',
             tabId: tabId
         });
+        
+        // Clear tab-specific storage when navigating away
+        const tabKey = `lintResults_${tabId}`;
+        chrome.storage.local.remove([tabKey]);
     }
+});
+
+// Clear tab-specific data when tab is closed
+chrome.tabs.onRemoved.addListener((tabId, removeInfo) => {
+    const tabKey = `lintResults_${tabId}`;
+    chrome.storage.local.remove([tabKey]);
 });
