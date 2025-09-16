@@ -215,6 +215,11 @@ function lintAnnotation(jsonData) {
             // ignore
         }
         
+        // Collect responses preferred over A and responses A is preferred over
+        const responsesPreferredOverA = [];
+        const responsesAPreferredOver = [];
+        const responsesPreferredOverIdealA = [];
+        
         for (const [model, data] of Object.entries(jsonData.responses)) {
             const letter = modelToLetterMap[model];
             if (!letter) {
@@ -229,15 +234,15 @@ function lintAnnotation(jsonData) {
                     items[letter] = [score, hasIssue];
                     if (score > 0) {
                         if (!aHasIssue) {
-                            errors.push(`You preferred Response ${letter} over A, so A has to have at least one minor issue.`);
+                            responsesPreferredOverA.push(letter);
                         }
                         if (isIdeal) {
-                            errors.push(`You preferred Response ${letter} over ideal A (rated 7); no response should rank higher than ideal A.`);
+                            responsesPreferredOverIdealA.push(letter);
                         }
                     }
                     if (score < 0) {
                         if (!hasIssue) {
-                            errors.push(`You preferred A over Response ${letter}, so this response has to have at least one minor issue.`);
+                            responsesAPreferredOver.push(letter);
                         }
                     }
                 } catch (e) {
@@ -245,6 +250,23 @@ function lintAnnotation(jsonData) {
                 }
             } else {
                 errors.push(`Missing preference for Response ${letter}.`);
+            }
+        }
+        
+        // Generate consolidated error messages
+        if (responsesPreferredOverA.length > 0) {
+            const responseList = responsesPreferredOverA.join(', ');
+            errors.push(`You preferred Response ${responseList} over A, so A has to have at least one minor issue.`);
+        }
+        
+        if (responsesPreferredOverIdealA.length > 0) {
+            const responseList = responsesPreferredOverIdealA.join(', ');
+            errors.push(`You preferred Response ${responseList} over ideal A (rated 7); no response should rank higher than ideal A.`);
+        }
+        
+        if (responsesAPreferredOver.length > 0) {
+            for (const letter of responsesAPreferredOver) {
+                errors.push(`You preferred A over Response ${letter}, so this response has to have at least one minor issue.`);
             }
         }
         
