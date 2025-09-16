@@ -265,15 +265,19 @@ function lintAnnotation(jsonData) {
         }
         
         if (responsesAPreferredOver.length > 0) {
-            for (const letter of responsesAPreferredOver) {
-                errors.push(`You preferred A over Response ${letter}, so this response has to have at least one minor issue.`);
-            }
+            const responseList = responsesAPreferredOver.join(', ');
+            errors.push(`You preferred A over Response ${responseList}, so ${responsesAPreferredOver.length === 1 ? 'this response has' : 'these responses have'} to have at least one minor issue.`);
         }
         
         if (Object.keys(items).length > 0) {
             // Only compare non-A responses to response A (deactivate comparisons between non-A responses)
             const aScore = items['A'][0];
             const aIssue = items['A'][1];
+            
+            // Collect inconsistent preferences for consolidated messaging
+            const responseWithIssuePreferredOverANoIssue = [];
+            const aWithIssuePreferredOverResponseNoIssue = [];
+            const tiedInconsistencies = [];
             
             // Check for inconsistencies only between A and other responses
             for (const [response, responseData] of Object.entries(items)) {
@@ -283,17 +287,34 @@ function lintAnnotation(jsonData) {
                     
                     if (responseScore > aScore) {
                         if (responseIssue && !aIssue) {
-                            errors.push(`Inconsistent preference: Response ${response} (with issue) preferred over Response A (no issue).`);
+                            responseWithIssuePreferredOverANoIssue.push(response);
                         }
                     } else if (responseScore < aScore) {
                         if (!responseIssue && aIssue) {
-                            errors.push(`Inconsistent preference: Response A (with issue) preferred over Response ${response} (no issue).`);
+                            aWithIssuePreferredOverResponseNoIssue.push(response);
                         }
                     } else if (responseScore === aScore) {
                         if (responseIssue !== aIssue) {
-                            errors.push(`Inconsistent preference: Response ${response} (${responseIssue ? 'with' : 'no'} issue) tied with Response A (${aIssue ? 'with' : 'no'} issue).`);
+                            tiedInconsistencies.push(`${response} (${responseIssue ? 'with' : 'no'} issue)`);
                         }
                     }
+                }
+            }
+            
+            // Generate consolidated inconsistency error messages
+            if (responseWithIssuePreferredOverANoIssue.length > 0) {
+                const responseList = responseWithIssuePreferredOverANoIssue.join(', ');
+                errors.push(`Inconsistent preference: Response ${responseList} (with issue) preferred over Response A (no issue).`);
+            }
+            
+            if (aWithIssuePreferredOverResponseNoIssue.length > 0) {
+                const responseList = aWithIssuePreferredOverResponseNoIssue.join(', ');
+                errors.push(`Inconsistent preference: Response A (with issue) preferred over Response ${responseList} (no issue).`);
+            }
+            
+            if (tiedInconsistencies.length > 0) {
+                for (const inconsistency of tiedInconsistencies) {
+                    errors.push(`Inconsistent preference: Response ${inconsistency} tied with Response A (${aIssue ? 'with' : 'no'} issue).`);
                 }
             }
         }
