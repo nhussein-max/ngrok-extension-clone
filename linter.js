@@ -71,15 +71,11 @@ function lintAnnotation(jsonData) {
         }
     }
     
-    // Assign letters: base -> A, then B, C, ... for responses in order
+    // Extract letter mapping from table column headers
     const letterMap = { 'base': 'A' };
-    let currentLetter = 'B';
-    if ('responses' in jsonData) {
-        for (const model in jsonData.responses) {
-            letterMap[model] = currentLetter;
-            currentLetter = String.fromCharCode(currentLetter.charCodeAt(0) + 1);
-        }
-    }
+    const modelToLetterMap = {}; // Maps model names to their letters
+    
+    // We'll populate this after we process the tables
     
     // Extract issues from model_issues table
     const responseHasIssue = {};
@@ -145,7 +141,7 @@ function lintAnnotation(jsonData) {
             errors.push("Missing colHeaders, cells, or rowHeaders in aspect_ratings.");
         }
         
-        // Extract has_issue per response
+        // Extract has_issue per response and build model to letter mapping
         for (let colIdx = 0; colIdx < colHeaders.length; colIdx++) {
             const header = colHeaders[colIdx];
             const letter = header.split(' ').pop(); // e.g., 'Model A' -> 'A'
@@ -158,6 +154,27 @@ function lintAnnotation(jsonData) {
                 }
             }
             responseHasIssue[letter] = hasIssue;
+        }
+        
+        // Build mapping from model names to letters by matching responses order with table columns
+        // The table columns after "Model A" correspond to the responses in the order they appear
+        if ('responses' in jsonData) {
+            const responseModels = Object.keys(jsonData.responses);
+            let responseIndex = 0;
+            for (let colIdx = 0; colIdx < colHeaders.length; colIdx++) {
+                const header = colHeaders[colIdx];
+                const letter = header.split(' ').pop();
+                
+                if (letter === 'A') {
+                    // Model A is always the base response
+                    continue;
+                } else if (responseIndex < responseModels.length) {
+                    // Map this model to this letter
+                    const modelName = responseModels[responseIndex];
+                    modelToLetterMap[modelName] = letter;
+                    responseIndex++;
+                }
+            }
         }
     } else {
         errors.push("Missing colHeaders, cells, or rowHeaders in model_issues.");
@@ -199,7 +216,11 @@ function lintAnnotation(jsonData) {
         }
         
         for (const [model, data] of Object.entries(jsonData.responses)) {
-            const letter = letterMap[model];
+            const letter = modelToLetterMap[model];
+            if (!letter) {
+                errors.push(`Model '${model}' not found in table columns.`);
+                continue;
+            }
             if ('preference' in data) {
                 const pref = data.preference;
                 try {
