@@ -51,7 +51,8 @@ window.addEventListener('message', function(event) {
         chrome.runtime.sendMessage({
             type: 'LINT_ANNOTATION',
             data: event.data.data,
-            url: window.location.href
+            url: window.location.href,
+            source: event.data.source || 'response'
         });
     }
 });
@@ -59,13 +60,17 @@ window.addEventListener('message', function(event) {
 // Listen for lint results from background script
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.type === 'LINT_RESULTS') {
-        displayLintResults(message.errors, message.success);
+        displayLintResults(message.errors, message.success, message.source);
     }
 });
 
-function displayLintResults(errors, success) {
+function displayLintResults(errors, success, source) {
     // Remove existing notification
     clearNotifications();
+    
+    // Determine if this is from a save request and if task is incomplete
+    const isFromSave = source === 'save';
+    const isIncomplete = errors.length === 1 && errors[0].includes('Task not complete');
     
     // Create notification element
     const notification = document.createElement('div');
@@ -82,9 +87,9 @@ function displayLintResults(errors, success) {
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         font-size: 14px;
         line-height: 1.4;
-        background: ${success ? '#d4edda' : '#f8d7da'};
-        border: 1px solid ${success ? '#c3e6cb' : '#f5c6cb'};
-        color: ${success ? '#155724' : '#721c24'};
+        background: ${success ? '#d4edda' : (isIncomplete ? '#fff3cd' : '#f8d7da')};
+        border: 1px solid ${success ? '#c3e6cb' : (isIncomplete ? '#ffeaa7' : '#f5c6cb')};
+        color: ${success ? '#155724' : (isIncomplete ? '#856404' : '#721c24')};
         opacity: 0;
         transform: translateX(100%);
         transition: all 0.3s ease;
@@ -93,17 +98,25 @@ function displayLintResults(errors, success) {
     if (success) {
         notification.innerHTML = `
             <div style="display: flex; align-items: center; margin-bottom: 8px;">
-                <span style="color: #28a745; margin-right: 8px;">✅</span>
-                <strong>Annotation Valid</strong>
+                <span style="color: #28a745; margin-right: 8px;">${isFromSave ? '💾' : '✅'}</span>
+                <strong>${isFromSave ? 'Saved Successfully' : 'Annotation Valid'}</strong>
             </div>
             <div style="font-family: monospace; font-size: 13px;">No issues found.</div>
+        `;
+    } else if (isIncomplete) {
+        notification.innerHTML = `
+            <div style="display: flex; align-items: center; margin-bottom: 8px;">
+                <span style="color: #ffc107; margin-right: 8px;">⏳</span>
+                <strong>Task Not Complete</strong>
+            </div>
+            <div style="font-family: monospace; font-size: 13px;">${isFromSave ? 'Saved with incomplete data.' : 'Annotation data is incomplete.'}</div>
         `;
     } else {
         const errorList = errors.map(error => `- ${error}`).join('\n');
         notification.innerHTML = `
             <div style="display: flex; align-items: center; margin-bottom: 8px;">
                 <span style="color: #dc3545; margin-right: 8px;">❌</span>
-                <strong>Issues Found (${errors.length})</strong>
+                <strong>${isFromSave ? 'Saved with Issues' : 'Issues Found'} (${errors.length})</strong>
             </div>
             <pre style="font-family: monospace; font-size: 11px; margin: 0; white-space: pre-wrap; max-height: 200px; overflow-y: auto;">${errorList}</pre>
         `;
@@ -134,15 +147,22 @@ function displayLintResults(errors, success) {
         notification.style.transform = 'translateX(0)';
     });
     
-    // Auto-remove after 10 seconds for success, keep errors until manually closed
-    if (success) {
+    // Auto-remove after different times based on type
+    let autoRemoveTime = 10000; // Default 10 seconds
+    if (isIncomplete) {
+        autoRemoveTime = 6000; // 6 seconds for incomplete tasks
+    } else if (!success) {
+        autoRemoveTime = 0; // Keep error messages until manually closed
+    }
+    
+    if (autoRemoveTime > 0) {
         setTimeout(() => {
             if (notification.parentNode) {
                 notification.style.opacity = '0';
                 notification.style.transform = 'translateX(100%)';
                 setTimeout(() => notification.remove(), 300);
             }
-        }, 10000);
+        }, autoRemoveTime);
     }
 }
 

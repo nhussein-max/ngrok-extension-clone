@@ -11,6 +11,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         try {
             const errors = lintAnnotation(message.data);
             const success = errors.length === 0;
+            const isFromSave = message.source === 'save';
             
             // Store latest results per tab
             const tabKey = `lintResults_${sender.tab.id}`;
@@ -21,7 +22,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                     timestamp: Date.now(),
                     url: message.url,
                     data: message.data,
-                    tabId: sender.tab.id
+                    tabId: sender.tab.id,
+                    source: message.source
                 },
                 lastLintResults: {
                     errors: errors,
@@ -29,7 +31,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                     timestamp: Date.now(),
                     url: message.url,
                     data: message.data,
-                    tabId: sender.tab.id
+                    tabId: sender.tab.id,
+                    source: message.source
                 }
             });
             
@@ -37,12 +40,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             chrome.tabs.sendMessage(sender.tab.id, {
                 type: 'LINT_RESULTS',
                 errors: errors,
-                success: success
+                success: success,
+                source: message.source
             });
             
             // Update badge
             chrome.action.setBadgeText({
-                text: success ? '✓' : errors.length.toString(),
+                text: success ? (isFromSave ? '💾' : '✓') : errors.length.toString(),
                 tabId: sender.tab.id
             });
             
@@ -59,7 +63,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             chrome.tabs.sendMessage(sender.tab.id, {
                 type: 'LINT_RESULTS',
                 errors: [`Linting error: ${error.message}`],
-                success: false
+                success: false,
+                source: message.source
             });
         }
     } else if (message.type === 'RESET_BADGE') {

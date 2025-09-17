@@ -16,12 +16,47 @@
     
     // Override fetch to intercept annotation requests
     window.fetch = async function(...args) {
+        const url = args[0];
+        
+        // Check if this is a save request and intercept the request body BEFORE sending
+        if (typeof url === 'string' && url.includes('save')) {
+            console.log('L1 Annotation Linter: Intercepted save request to', url);
+            
+            // Try to get the request body if it was sent as JSON
+            if (args[1] && args[1].body) {
+                try {
+                    const requestData = JSON.parse(args[1].body);
+                    if (requestData && requestData.annotations) {
+                        const annotationData = requestData.annotations;
+                        console.log('L1 Annotation Linter: Found annotation data in save request');
+                        
+                        // Check if this looks like annotation data
+                        if (annotationData && typeof annotationData === 'object' && 
+                            ('base_response' in annotationData || 'responses' in annotationData || 'model_issues' in annotationData)) {
+                            
+                            // Send annotation data for linting immediately
+                            setTimeout(() => {
+                                window.postMessage({
+                                    type: 'ANNOTATION_DATA',
+                                    data: annotationData,
+                                    url: url,
+                                    source: 'save'
+                                }, '*');
+                            }, 100);
+                        }
+                    }
+                } catch (e) {
+                    console.log('L1 Annotation Linter: Could not parse save request body:', e);
+                }
+            }
+        }
+        
+        // Proceed with the original request
         const response = await originalFetch.apply(this, args);
         
-        // Check if this is an annotation or history request
-        const url = args[0];
+        // Check if this is an annotation or history request (for responses)
         if (typeof url === 'string' && (url.includes('annotation') || url.includes('history'))) {
-            console.log('L1 Annotation Linter: Intercepted request to', url);
+            console.log('L1 Annotation Linter: Intercepted response from', url);
             
             // Clone response to avoid consuming the original
             const clonedResponse = response.clone();
@@ -48,7 +83,8 @@
                         window.postMessage({
                             type: 'ANNOTATION_DATA',
                             data: annotationData,
-                            url: url
+                            url: url,
+                            source: 'response'
                         }, '*');
                     }, 100);
                 }
@@ -70,6 +106,33 @@
     };
     
     XMLHttpRequest.prototype.send = function(...args) {
+        // Check for save requests and intercept the request data
+        if (this._url && this._url.includes('save') && args[0]) {
+            try {
+                const requestData = JSON.parse(args[0]);
+                if (requestData && requestData.annotations) {
+                    const annotationData = requestData.annotations;
+                    console.log('L1 Annotation Linter: Found annotation data in XHR save request');
+                    
+                    if (annotationData && typeof annotationData === 'object' && 
+                        ('base_response' in annotationData || 'responses' in annotationData || 'model_issues' in annotationData)) {
+                        
+                        setTimeout(() => {
+                            window.postMessage({
+                                type: 'ANNOTATION_DATA',
+                                data: annotationData,
+                                url: this._url,
+                                source: 'save'
+                            }, '*');
+                        }, 100);
+                    }
+                }
+            } catch (e) {
+                console.log('L1 Annotation Linter: Could not parse XHR save request body:', e);
+            }
+        }
+        
+        // Handle response data for annotation/history requests
         if (this._url && (this._url.includes('annotation') || this._url.includes('history'))) {
             const originalOnLoad = this.onload;
             this.onload = function(e) {
@@ -93,7 +156,8 @@
                             window.postMessage({
                                 type: 'ANNOTATION_DATA',
                                 data: annotationData,
-                                url: this._url
+                                url: this._url,
+                                source: 'response'
                             }, '*');
                         }, 100);
                     }

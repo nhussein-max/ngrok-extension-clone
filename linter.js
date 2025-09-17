@@ -63,6 +63,12 @@ function lintAnnotation(jsonData) {
      */
     const errors = [];
     
+    // Check if annotation is complete
+    const isComplete = isAnnotationComplete(jsonData);
+    if (!isComplete) {
+        return ['Task not complete - annotation data is incomplete or missing required fields.'];
+    }
+    
     // Check for required keys
     const requiredKeys = ['base_response', 'responses', 'model_issues', 'aspect_ratings'];
     for (const key of requiredKeys) {
@@ -323,6 +329,73 @@ function lintAnnotation(jsonData) {
     return errors;
 }
 
+function isAnnotationComplete(jsonData) {
+    /**
+     * Check if the annotation is complete enough for full validation.
+     * Returns true if all required fields are filled out.
+     */
+    
+    // Check if required structures exist
+    if (!jsonData.base_response || !jsonData.responses || !jsonData.model_issues || !jsonData.aspect_ratings) {
+        return false;
+    }
+    
+    // Check if base response has rating
+    if (!jsonData.base_response.base_model || !jsonData.base_response.base_model.baseline) {
+        return false;
+    }
+    
+    // Check if there are any responses defined
+    if (Object.keys(jsonData.responses).length === 0) {
+        return false;
+    }
+    
+    // Check if all responses have preferences
+    for (const [model, data] of Object.entries(jsonData.responses)) {
+        if (!data.preference) {
+            return false;
+        }
+    }
+    
+    // Check if tables have data
+    const modelIssues = jsonData.model_issues;
+    const aspectRatings = jsonData.aspect_ratings;
+    
+    if (!modelIssues.cells || !aspectRatings.cells) {
+        return false;
+    }
+    
+    // Check if any cells are filled (not all empty)
+    let hasAnyData = false;
+    for (const row of aspectRatings.cells) {
+        for (const cell of row) {
+            if (cell && cell !== "") {
+                hasAnyData = true;
+                break;
+            }
+        }
+        if (hasAnyData) break;
+    }
+    
+    if (!hasAnyData) {
+        return false;
+    }
+    
+    // Check if model issues table has any data
+    hasAnyData = false;
+    for (const row of modelIssues.cells) {
+        for (const cell of row) {
+            if (Array.isArray(cell) && cell.length > 0) {
+                hasAnyData = true;
+                break;
+            }
+        }
+        if (hasAnyData) break;
+    }
+    
+    return hasAnyData;
+}
+
 // Helper functions
 function setsEqual(a, b) {
     return a.size === b.size && [...a].every(value => b.has(value));
@@ -334,5 +407,5 @@ function arraysEqual(a, b) {
 
 // Export for use in other files
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { lintAnnotation, getScore, ratingText };
+    module.exports = { lintAnnotation, getScore, ratingText, isAnnotationComplete };
 }
