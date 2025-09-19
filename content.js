@@ -60,11 +60,11 @@ window.addEventListener('message', function(event) {
 // Listen for lint results from background script
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.type === 'LINT_RESULTS') {
-        displayLintResults(message.errors, message.success, message.source);
+        displayLintResults(message.errors, message.success, message.source, message.email);
     }
 });
 
-function displayLintResults(errors, success, source) {
+function displayLintResults(errors, success, source, email) {
     // Remove existing notification
     clearNotifications();
     
@@ -101,6 +101,7 @@ function displayLintResults(errors, success, source) {
                 <span style="color: #28a745; margin-right: 8px;">${isFromSave ? '💾' : '✅'}</span>
                 <strong>${isFromSave ? 'Saved Successfully' : 'Annotation Valid'}</strong>
             </div>
+            ${email ? `<div style="font-size: 14px; color: #155724; margin-bottom: 12px; padding: 10px; background: #d1ecf1; border-radius: 4px; border: 1px solid #bee5eb; font-weight: 600;">📧 ${email}</div>` : ''}
             <div style="font-family: monospace; font-size: 13px;">No issues found.</div>
         `;
     } else if (isIncomplete) {
@@ -109,6 +110,7 @@ function displayLintResults(errors, success, source) {
                 <span style="color: #ffc107; margin-right: 8px;">⏳</span>
                 <strong>Task Not Complete</strong>
             </div>
+            ${email ? `<div style="font-size: 14px; color: #856404; margin-bottom: 12px; padding: 10px; background: #fff3cd; border-radius: 4px; border: 1px solid #ffeaa7; font-weight: 600;">📧 ${email}</div>` : ''}
             <div style="font-family: monospace; font-size: 13px;">${isFromSave ? 'Saved with incomplete data.' : 'Annotation data is incomplete.'}</div>
         `;
     } else {
@@ -118,6 +120,7 @@ function displayLintResults(errors, success, source) {
                 <span style="color: #dc3545; margin-right: 8px;">❌</span>
                 <strong>${isFromSave ? 'Saved with Issues' : 'Issues Found'} (${errors.length})</strong>
             </div>
+            ${email ? `<div style="font-size: 14px; color: #721c24; margin-bottom: 12px; padding: 10px; background: #f8d7da; border-radius: 4px; border: 1px solid #f5c6cb; font-weight: 600;">📧 ${email}</div>` : ''}
             <pre style="font-family: monospace; font-size: 11px; margin: 0; white-space: pre-wrap; max-height: 200px; overflow-y: auto;">${errorList}</pre>
         `;
     }

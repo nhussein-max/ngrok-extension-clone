@@ -1,9 +1,15 @@
 // Popup script to display lint results and handle user actions
+
+// DOM elements - declared globally so storage listener can access them
+let statusEl, resultsEl, errorsEl, timestampEl, emailSectionEl, emailContentEl;
+
 document.addEventListener('DOMContentLoaded', function() {
-    const statusEl = document.getElementById('status');
-    const resultsEl = document.getElementById('results');
-    const errorsEl = document.getElementById('errors');
-    const timestampEl = document.getElementById('timestamp');
+    statusEl = document.getElementById('status');
+    resultsEl = document.getElementById('results');
+    errorsEl = document.getElementById('errors');
+    timestampEl = document.getElementById('timestamp');
+    emailSectionEl = document.getElementById('email-section');
+    emailContentEl = document.getElementById('email-content');
     
     // Load stored results
     loadStoredResults();
@@ -26,7 +32,15 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function displayResults(results) {
-        const { errors, success, timestamp, url } = results;
+        const { errors, success, timestamp, url, email } = results;
+        
+        // Display email if available (always show at top)
+        if (email) {
+            emailSectionEl.classList.remove('hidden');
+            emailContentEl.textContent = email;
+        } else {
+            emailSectionEl.classList.add('hidden');
+        }
         
         // Update status
         statusEl.className = `status ${success ? 'success' : 'error'}`;
@@ -52,13 +66,14 @@ document.addEventListener('DOMContentLoaded', function() {
         const date = new Date(timestamp);
         timestampEl.textContent = `Last checked: ${date.toLocaleString()}`;
     }
-    
-    function escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
 });
+
+// Helper function for escaping HTML (needed by global displayResults)
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
 
 // Listen for storage changes to update UI in real-time
 chrome.storage.onChanged.addListener(function(changes, area) {
@@ -78,7 +93,15 @@ chrome.storage.onChanged.addListener(function(changes, area) {
 });
 
 function displayResults(results) {
-    const { errors, success, timestamp, url } = results;
+    const { errors, success, timestamp, url, email } = results;
+    
+    // Display email if available (always show at top)
+    if (email) {
+        emailSectionEl.classList.remove('hidden');
+        emailContentEl.textContent = email;
+    } else {
+        emailSectionEl.classList.add('hidden');
+    }
     
     // Update status
     statusEl.className = `status ${success ? 'success' : 'error'}`;

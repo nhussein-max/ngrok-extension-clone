@@ -13,6 +13,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             const success = errors.length === 0;
             const isFromSave = message.source === 'save';
             
+            // Extract email from the annotation data
+            const email = message.data.email || null;
+            
             // Store latest results per tab
             const tabKey = `lintResults_${sender.tab.id}`;
             chrome.storage.local.set({
@@ -22,6 +25,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                     timestamp: Date.now(),
                     url: message.url,
                     data: message.data,
+                    email: email,
                     tabId: sender.tab.id,
                     source: message.source
                 },
@@ -31,6 +35,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                     timestamp: Date.now(),
                     url: message.url,
                     data: message.data,
+                    email: email,
                     tabId: sender.tab.id,
                     source: message.source
                 }
@@ -41,6 +46,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 type: 'LINT_RESULTS',
                 errors: errors,
                 success: success,
+                email: email,
                 source: message.source
             });
             

@@ -88,6 +88,38 @@
             margin-top: 12px;
         }
         
+        .email-section {
+            margin-bottom: 16px;
+            padding: 14px;
+            background: #e8f4fd;
+            border: 1px solid #bee5eb;
+            border-radius: 6px;
+        }
+        
+        .email-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        
+        .email-label {
+            font-weight: 600;
+            color: #0c5460;
+            font-size: 14px;
+        }
+        
+        .email-content {
+            font-family: monospace;
+            font-size: 13px;
+            color: #0c5460;
+            word-break: break-all;
+            font-weight: 500;
+            background: #ffffff;
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #b8daff;
+        }
+        
         .hidden {
             display: none;
         }
@@ -97,6 +129,13 @@
     <div class="header">
         <div class="logo">🔍</div>
         <div class="title">L1 Annotation Linter</div>
+    </div>
+    
+    <div id="email-section" class="email-section hidden">
+        <div class="email-header">
+            <span class="email-label">📧 Email</span>
+        </div>
+        <div id="email-content" class="email-content"></div>
     </div>
     
     <div id="status" class="status waiting">
