@@ -196,7 +196,7 @@ function lintAnnotation(jsonData) {
                 const aHasIssue = responseHasIssue['A'] || false;
                 const isIdeal = ratingInt === 7;
                 if (isIdeal && aHasIssue) {
-                    errors.push("Response A is ideal (rated 7) so should have no issues; remove any issues noted for A.");
+                    errors.push("Response A is awesome (rated 7) so should have no issues; remove any issues noted for A.");
                 }
                 if (!isIdeal && !aHasIssue) {
                     errors.push("Response A rated below 7 has to have at least one minor issue in the table.");
