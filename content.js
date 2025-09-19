@@ -52,7 +52,9 @@ window.addEventListener('message', function(event) {
             type: 'LINT_ANNOTATION',
             data: event.data.data,
             url: window.location.href,
-            source: event.data.source || 'response'
+            source: event.data.source || 'response',
+            isHistoryData: event.data.isHistoryData || false,
+            historyArray: event.data.historyArray || null
         });
     }
 });

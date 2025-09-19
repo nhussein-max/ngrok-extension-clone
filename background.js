@@ -14,7 +14,22 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             const isFromSave = message.source === 'save';
             
             // Extract email from the annotation data
-            const email = message.data.email || null;
+            let email = message.data.email || null;
+            
+            // For history data, find the email from the last reviewLevel 0 entry
+            if (message.isHistoryData && message.historyArray && Array.isArray(message.historyArray)) {
+                console.log('L1 Annotation Linter: Processing history data, looking for last reviewLevel 0 email');
+                
+                // Find the last entry with reviewLevel 0
+                for (let i = message.historyArray.length - 1; i >= 0; i--) {
+                    const entry = message.historyArray[i];
+                    if (entry && entry.reviewLevel === 0 && entry.email) {
+                        email = entry.email;
+                        console.log('L1 Annotation Linter: Found email from reviewLevel 0:', email);
+                        break;
+                    }
+                }
+            }
             
             // Store latest results per tab
             const tabKey = `lintResults_${sender.tab.id}`;

@@ -66,7 +66,13 @@
                 
                 // Handle both single annotations and arrays (history endpoint)
                 let annotationData = data;
+                let isHistoryData = false;
+                let originalHistoryArray = null;
+                
                 if (Array.isArray(data) && data.length > 0) {
+                    // This is history data - store the original array
+                    isHistoryData = true;
+                    originalHistoryArray = data;
                     // Use the last annotation from the array (most recent)
                     annotationData = data[data.length - 1];
                     console.log('L1 Annotation Linter: Found annotation array, using last entry');
@@ -84,7 +90,9 @@
                             type: 'ANNOTATION_DATA',
                             data: annotationData,
                             url: url,
-                            source: 'response'
+                            source: 'response',
+                            isHistoryData: isHistoryData,
+                            historyArray: originalHistoryArray
                         }, '*');
                     }, 100);
                 }
@@ -141,7 +149,13 @@
                     
                     // Handle both single annotations and arrays (history endpoint)
                     let annotationData = data;
+                    let isHistoryData = false;
+                    let originalHistoryArray = null;
+                    
                     if (Array.isArray(data) && data.length > 0) {
+                        // This is history data - store the original array
+                        isHistoryData = true;
+                        originalHistoryArray = data;
                         // Use the last annotation from the array (most recent)
                         annotationData = data[data.length - 1];
                         console.log('L1 Annotation Linter: Found annotation array via XHR, using last entry');
@@ -157,7 +171,9 @@
                                 type: 'ANNOTATION_DATA',
                                 data: annotationData,
                                 url: this._url,
-                                source: 'response'
+                                source: 'response',
+                                isHistoryData: isHistoryData,
+                                historyArray: originalHistoryArray
                             }, '*');
                         }, 100);
                     }
