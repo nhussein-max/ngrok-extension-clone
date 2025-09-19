@@ -21,6 +21,23 @@ function injectNetworkMonitor() {
 // Initial injection
 injectNetworkMonitor();
 
+// Initialize email toggle state in injected script
+try {
+    chrome.storage.local.get(['emailToggleState'], function(result) {
+        if (chrome.runtime.lastError) {
+            console.log('L1 Annotation Linter: Extension context invalidated, skipping initial email toggle setup');
+            return;
+        }
+        const showEmail = result.emailToggleState !== false; // Default to true if not set
+        window.postMessage({
+            type: 'EMAIL_TOGGLE_CHANGED',
+            showEmail: showEmail
+        }, '*');
+    });
+} catch (error) {
+    console.log('L1 Annotation Linter: Extension context invalidated during initialization');
+}
+
 // Re-inject on page navigation (SPA support)
 let lastUrl = location.href;
 new MutationObserver(() => {
@@ -36,7 +53,20 @@ new MutationObserver(() => {
         chrome.runtime.sendMessage({type: 'RESET_BADGE'});
         
         // Re-inject script after a short delay to ensure page is ready
-        setTimeout(injectNetworkMonitor, 100);
+        setTimeout(() => {
+            injectNetworkMonitor();
+            
+            // Re-initialize email toggle state in injected script after re-injection
+            chrome.storage.local.get(['emailToggleState'], function(result) {
+                const showEmail = result.emailToggleState !== false; // Default to true if not set
+                setTimeout(() => {
+                    window.postMessage({
+                        type: 'EMAIL_TOGGLE_CHANGED',
+                        showEmail: showEmail
+                    }, '*');
+                }, 200); // Small delay to ensure injected script is loaded
+            });
+        }, 100);
     }
 }).observe(document, {subtree: true, childList: true});
 
@@ -54,7 +84,8 @@ window.addEventListener('message', function(event) {
             url: window.location.href,
             source: event.data.source || 'response',
             isHistoryData: event.data.isHistoryData || false,
-            historyArray: event.data.historyArray || null
+            historyArray: event.data.historyArray || null,
+            emailToggleState: event.data.emailToggleState
         });
     }
 });
@@ -63,6 +94,13 @@ window.addEventListener('message', function(event) {
 chrome.storage.onChanged.addListener(function(changes, area) {
     if (area === 'local' && changes.emailToggleState) {
         console.log('L1 Annotation Linter: Email toggle state changed to:', changes.emailToggleState.newValue);
+        
+        // Notify injected script about email toggle state change
+        window.postMessage({
+            type: 'EMAIL_TOGGLE_CHANGED',
+            showEmail: changes.emailToggleState.newValue
+        }, '*');
+        
         // Refresh existing notification with new toggle state
         refreshExistingNotification(changes.emailToggleState.newValue);
     }
@@ -71,12 +109,18 @@ chrome.storage.onChanged.addListener(function(changes, area) {
 // Listen for lint results from background script
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.type === 'LINT_RESULTS') {
-        // Check email toggle state before displaying
-        chrome.storage.local.get(['emailToggleState'], function(result) {
-            const showEmail = result.emailToggleState !== false; // Default to true if not set
-            const emailToShow = showEmail ? message.email : null;
+        // Use email toggle state from background script if available, otherwise check storage
+        if (message.emailToggleState !== undefined) {
+            const emailToShow = message.emailToggleState ? message.email : null;
             displayLintResults(message.errors, message.success, message.source, emailToShow);
-        });
+        } else {
+            // Fallback to checking storage (for backward compatibility)
+            chrome.storage.local.get(['emailToggleState'], function(result) {
+                const showEmail = result.emailToggleState !== false; // Default to true if not set
+                const emailToShow = showEmail ? message.email : null;
+                displayLintResults(message.errors, message.success, message.source, emailToShow);
+            });
+        }
     } else if (message.type === 'REFRESH_NOTIFICATION') {
         // Refresh existing notification with new toggle state
         refreshExistingNotification(message.showEmail);
@@ -198,31 +242,26 @@ function clearNotifications() {
 function refreshExistingNotification(showEmail) {
     console.log('L1 Annotation Linter: Refreshing existing notification with showEmail:', showEmail);
 
-    // Get the latest lint results from storage
-    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-        const currentTabId = tabs[0].id;
-        const tabKey = `lintResults_${currentTabId}`;
+    // Get the latest lint results from storage (use current tab ID from URL)
+    chrome.storage.local.get(['lastLintResults'], function(result) {
+        let latestResults = result.lastLintResults;
 
-        chrome.storage.local.get([tabKey, 'lastLintResults'], function(result) {
-            let latestResults = result[tabKey] || result.lastLintResults;
-
-            if (latestResults) {
-                console.log('L1 Annotation Linter: Found existing results, refreshing notification');
-                // Re-display the notification with the new email toggle state
-                const emailToShow = showEmail ? latestResults.email : null;
-                displayLintResults(latestResults.errors, latestResults.success, latestResults.source, emailToShow);
+        if (latestResults) {
+            console.log('L1 Annotation Linter: Found existing results, refreshing notification');
+            // Re-display the notification with the new email toggle state
+            const emailToShow = showEmail ? latestResults.email : null;
+            displayLintResults(latestResults.errors, latestResults.success, latestResults.source, emailToShow);
+        } else {
+            console.log('L1 Annotation Linter: No existing results found in storage');
+            // Check if there's currently a visible notification and update it directly
+            const existingNotification = document.getElementById('l1-linter-notification');
+            if (existingNotification) {
+                console.log('L1 Annotation Linter: Found existing notification, updating it directly');
+                updateExistingNotification(existingNotification, showEmail);
             } else {
-                console.log('L1 Annotation Linter: No existing results found in storage');
-                // Check if there's currently a visible notification and update it directly
-                const existingNotification = document.getElementById('l1-linter-notification');
-                if (existingNotification) {
-                    console.log('L1 Annotation Linter: Found existing notification, updating it directly');
-                    updateExistingNotification(existingNotification, showEmail);
-                } else {
-                    console.log('L1 Annotation Linter: No existing notification found, toggle state updated for future notifications');
-                }
+                console.log('L1 Annotation Linter: No existing notification found, toggle state updated for future notifications');
             }
-        });
+        }
     });
 }
 
@@ -233,17 +272,12 @@ function updateExistingNotification(notificationElement, showEmail) {
         if (showEmail) {
             // Email should be shown, but we need the email content
             // Get the latest results to get the email
-            chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-                const currentTabId = tabs[0].id;
-                const tabKey = `lintResults_${currentTabId}`;
-
-                chrome.storage.local.get([tabKey, 'lastLintResults'], function(result) {
-                    let latestResults = result[tabKey] || result.lastLintResults;
-                    if (latestResults && latestResults.email) {
-                        emailDiv.innerHTML = `📧 ${latestResults.email}`;
-                        emailDiv.style.display = 'block';
-                    }
-                });
+            chrome.storage.local.get(['lastLintResults'], function(result) {
+                let latestResults = result.lastLintResults;
+                if (latestResults && latestResults.email) {
+                    emailDiv.innerHTML = `📧 ${latestResults.email}`;
+                    emailDiv.style.display = 'block';
+                }
             });
         } else {
             // Hide the email

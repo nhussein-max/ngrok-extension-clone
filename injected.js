@@ -11,6 +11,20 @@
     }
     window.L1LinterInjected = true;
     
+    // Listen for email toggle state changes from content script
+    window.addEventListener('message', function(event) {
+        if (event.source !== window) return;
+        
+        if (event.data.type === 'EMAIL_TOGGLE_CHANGED') {
+            console.log('L1 Annotation Linter: Email toggle state changed to:', event.data.showEmail);
+            // Store the current email toggle state for future annotation processing
+            window.L1LinterEmailToggleState = event.data.showEmail;
+        }
+    });
+    
+    // Initialize email toggle state (default to true)
+    window.L1LinterEmailToggleState = true;
+    
     // Store original fetch
     const originalFetch = window.fetch;
     
@@ -33,16 +47,16 @@
                         // Check if this looks like annotation data
                         if (annotationData && typeof annotationData === 'object' && 
                             ('base_response' in annotationData || 'responses' in annotationData || 'model_issues' in annotationData)) {
-                            
-                            // Send annotation data for linting immediately
-                            setTimeout(() => {
-                                window.postMessage({
-                                    type: 'ANNOTATION_DATA',
-                                    data: annotationData,
-                                    url: url,
-                                    source: 'save'
-                                }, '*');
-                            }, 100);
+                                 // Send annotation data for linting immediately
+                        setTimeout(() => {
+                            window.postMessage({
+                                type: 'ANNOTATION_DATA',
+                                data: annotationData,
+                                url: url,
+                                source: 'save',
+                                emailToggleState: window.L1LinterEmailToggleState
+                            }, '*');
+                        }, 100);
                         }
                     }
                 } catch (e) {
@@ -92,7 +106,8 @@
                             url: url,
                             source: 'response',
                             isHistoryData: isHistoryData,
-                            historyArray: originalHistoryArray
+                            historyArray: originalHistoryArray,
+                            emailToggleState: window.L1LinterEmailToggleState
                         }, '*');
                     }, 100);
                 }
@@ -130,7 +145,8 @@
                                 type: 'ANNOTATION_DATA',
                                 data: annotationData,
                                 url: this._url,
-                                source: 'save'
+                                source: 'save',
+                                emailToggleState: window.L1LinterEmailToggleState
                             }, '*');
                         }, 100);
                     }
@@ -173,7 +189,8 @@
                                 url: this._url,
                                 source: 'response',
                                 isHistoryData: isHistoryData,
-                                historyArray: originalHistoryArray
+                                historyArray: originalHistoryArray,
+                                emailToggleState: window.L1LinterEmailToggleState
                             }, '*');
                         }, 100);
                     }

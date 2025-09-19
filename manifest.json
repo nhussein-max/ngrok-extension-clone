@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "L1 Annotation Linter",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Real-time linting for JSON annotation files used in ML model evaluation tasks",
   "permissions": [
     "activeTab",
