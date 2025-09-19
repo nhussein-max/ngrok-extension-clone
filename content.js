@@ -14,29 +14,30 @@ function injectNetworkMonitor() {
     injectedScript.src = chrome.runtime.getURL('injected.js');
     injectedScript.onload = function() {
         console.log('L1 Annotation Linter: Network monitor injected');
+        
+        // Send initial email toggle state after injection
+        try {
+            chrome.storage.local.get(['emailToggleState'], function(result) {
+                if (chrome.runtime.lastError) {
+                    console.log('L1 Annotation Linter: Error getting email toggle state:', chrome.runtime.lastError.message);
+                    return;
+                }
+                const showEmail = result.emailToggleState !== false; // Default to true if not set
+                console.log('L1 Annotation Linter: Sending initial email toggle state:', showEmail);
+                window.postMessage({
+                    type: 'EMAIL_TOGGLE_CHANGED',
+                    showEmail: showEmail
+                }, '*');
+            });
+        } catch (error) {
+            console.log('L1 Annotation Linter: Error sending initial email toggle state:', error.message);
+        }
     };
     (document.head || document.documentElement).appendChild(injectedScript);
 }
 
 // Initial injection
 injectNetworkMonitor();
-
-// Initialize email toggle state in injected script
-try {
-    chrome.storage.local.get(['emailToggleState'], function(result) {
-        if (chrome.runtime.lastError) {
-            console.log('L1 Annotation Linter: Extension context invalidated, skipping initial email toggle setup');
-            return;
-        }
-        const showEmail = result.emailToggleState !== false; // Default to true if not set
-        window.postMessage({
-            type: 'EMAIL_TOGGLE_CHANGED',
-            showEmail: showEmail
-        }, '*');
-    });
-} catch (error) {
-    console.log('L1 Annotation Linter: Extension context invalidated during initialization');
-}
 
 // Re-inject on page navigation (SPA support)
 let lastUrl = location.href;
@@ -55,17 +56,6 @@ new MutationObserver(() => {
         // Re-inject script after a short delay to ensure page is ready
         setTimeout(() => {
             injectNetworkMonitor();
-            
-            // Re-initialize email toggle state in injected script after re-injection
-            chrome.storage.local.get(['emailToggleState'], function(result) {
-                const showEmail = result.emailToggleState !== false; // Default to true if not set
-                setTimeout(() => {
-                    window.postMessage({
-                        type: 'EMAIL_TOGGLE_CHANGED',
-                        showEmail: showEmail
-                    }, '*');
-                }, 200); // Small delay to ensure injected script is loaded
-            });
         }, 100);
     }
 }).observe(document, {subtree: true, childList: true});

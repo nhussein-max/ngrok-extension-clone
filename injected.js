@@ -11,6 +11,15 @@
     }
     window.L1LinterInjected = true;
     
+    // Initialize email toggle state as undefined - will be set by content script
+    window.L1LinterEmailToggleState = undefined;
+    
+    // Function to get current email toggle state with fallback
+    function getCurrentEmailToggleState() {
+        // If state is undefined, default to false (more conservative approach)
+        return window.L1LinterEmailToggleState !== undefined ? window.L1LinterEmailToggleState : false;
+    }
+    
     // Listen for email toggle state changes from content script
     window.addEventListener('message', function(event) {
         if (event.source !== window) return;
@@ -21,9 +30,6 @@
             window.L1LinterEmailToggleState = event.data.showEmail;
         }
     });
-    
-    // Initialize email toggle state (default to true)
-    window.L1LinterEmailToggleState = true;
     
     // Store original fetch
     const originalFetch = window.fetch;
@@ -54,7 +60,7 @@
                                 data: annotationData,
                                 url: url,
                                 source: 'save',
-                                emailToggleState: window.L1LinterEmailToggleState
+                                emailToggleState: getCurrentEmailToggleState()
                             }, '*');
                         }, 100);
                         }
@@ -107,7 +113,7 @@
                             source: 'response',
                             isHistoryData: isHistoryData,
                             historyArray: originalHistoryArray,
-                            emailToggleState: window.L1LinterEmailToggleState
+                            emailToggleState: getCurrentEmailToggleState()
                         }, '*');
                     }, 100);
                 }
@@ -146,7 +152,7 @@
                                 data: annotationData,
                                 url: this._url,
                                 source: 'save',
-                                emailToggleState: window.L1LinterEmailToggleState
+                                emailToggleState: getCurrentEmailToggleState()
                             }, '*');
                         }, 100);
                     }
@@ -190,7 +196,7 @@
                                 source: 'response',
                                 isHistoryData: isHistoryData,
                                 historyArray: originalHistoryArray,
-                                emailToggleState: window.L1LinterEmailToggleState
+                                emailToggleState: getCurrentEmailToggleState()
                             }, '*');
                         }, 100);
                     }
