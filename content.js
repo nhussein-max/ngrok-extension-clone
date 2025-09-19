@@ -63,8 +63,8 @@ window.addEventListener('message', function(event) {
 chrome.storage.onChanged.addListener(function(changes, area) {
     if (area === 'local' && changes.emailToggleState) {
         console.log('L1 Annotation Linter: Email toggle state changed to:', changes.emailToggleState.newValue);
-        // The next notification will automatically use the new toggle state
-        // No need to manually update existing notifications as they auto-dismiss
+        // Refresh existing notification with new toggle state
+        refreshExistingNotification(changes.emailToggleState.newValue);
     }
 });
 
@@ -77,6 +77,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             const emailToShow = showEmail ? message.email : null;
             displayLintResults(message.errors, message.success, message.source, emailToShow);
         });
+    } else if (message.type === 'REFRESH_NOTIFICATION') {
+        // Refresh existing notification with new toggle state
+        refreshExistingNotification(message.showEmail);
     }
 });
 
@@ -189,5 +192,62 @@ function clearNotifications() {
     const existing = document.getElementById('l1-linter-notification');
     if (existing) {
         existing.remove();
+    }
+}
+
+function refreshExistingNotification(showEmail) {
+    console.log('L1 Annotation Linter: Refreshing existing notification with showEmail:', showEmail);
+
+    // Get the latest lint results from storage
+    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+        const currentTabId = tabs[0].id;
+        const tabKey = `lintResults_${currentTabId}`;
+
+        chrome.storage.local.get([tabKey, 'lastLintResults'], function(result) {
+            let latestResults = result[tabKey] || result.lastLintResults;
+
+            if (latestResults) {
+                console.log('L1 Annotation Linter: Found existing results, refreshing notification');
+                // Re-display the notification with the new email toggle state
+                const emailToShow = showEmail ? latestResults.email : null;
+                displayLintResults(latestResults.errors, latestResults.success, latestResults.source, emailToShow);
+            } else {
+                console.log('L1 Annotation Linter: No existing results found in storage');
+                // Check if there's currently a visible notification and update it directly
+                const existingNotification = document.getElementById('l1-linter-notification');
+                if (existingNotification) {
+                    console.log('L1 Annotation Linter: Found existing notification, updating it directly');
+                    updateExistingNotification(existingNotification, showEmail);
+                } else {
+                    console.log('L1 Annotation Linter: No existing notification found, toggle state updated for future notifications');
+                }
+            }
+        });
+    });
+}
+
+function updateExistingNotification(notificationElement, showEmail) {
+    // Find the email div within the notification
+    const emailDiv = notificationElement.querySelector('div[style*="font-size: 14px"]');
+    if (emailDiv) {
+        if (showEmail) {
+            // Email should be shown, but we need the email content
+            // Get the latest results to get the email
+            chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+                const currentTabId = tabs[0].id;
+                const tabKey = `lintResults_${currentTabId}`;
+
+                chrome.storage.local.get([tabKey, 'lastLintResults'], function(result) {
+                    let latestResults = result[tabKey] || result.lastLintResults;
+                    if (latestResults && latestResults.email) {
+                        emailDiv.innerHTML = `📧 ${latestResults.email}`;
+                        emailDiv.style.display = 'block';
+                    }
+                });
+            });
+        } else {
+            // Hide the email
+            emailDiv.style.display = 'none';
+        }
     }
 }

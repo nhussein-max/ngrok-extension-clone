@@ -23,6 +23,8 @@ document.addEventListener('DOMContentLoaded', function() {
         emailToggleEl.addEventListener('change', function() {
             saveToggleState(this.checked);
             updateEmailVisibility();
+            // Also refresh the overlay notification in the active tab
+            refreshOverlayNotification(this.checked);
         });
     }
     
@@ -61,11 +63,9 @@ document.addEventListener('DOMContentLoaded', function() {
     function updateEmailVisibility() {
         if (!emailSectionEl) return;
 
-        if (emailToggleEl && emailToggleEl.checked) {
-            emailSectionEl.classList.remove('hidden');
-        } else {
-            emailSectionEl.classList.add('hidden');
-        }
+        // Always show email section if there's email data, regardless of toggle state
+        // The toggle only controls whether email content is shown
+        // Email section visibility is handled by displayResults function
     }
     
     // displayResults function moved to global scope to avoid duplication
@@ -85,23 +85,50 @@ chrome.storage.onChanged.addListener(function(changes, area) {
         chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
             const currentTabId = tabs[0].id;
             const tabKey = `lintResults_${currentTabId}`;
-            
+
             if (changes[tabKey]) {
                 displayResults(changes[tabKey].newValue);
             } else if (changes.lastLintResults && changes.lastLintResults.newValue?.tabId === currentTabId) {
                 displayResults(changes.lastLintResults.newValue);
             }
         });
+
+        // Also handle email toggle state changes
+        if (changes.emailToggleState) {
+            console.log('L1 Annotation Linter: Email toggle state changed in popup, updating display');
+            // Re-display current results with new toggle state
+            chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+                const currentTabId = tabs[0].id;
+                const tabKey = `lintResults_${currentTabId}`;
+
+                chrome.storage.local.get([tabKey, 'lastLintResults'], function(result) {
+                    let latestResults = result[tabKey] || result.lastLintResults;
+                    if (latestResults) {
+                        displayResults(latestResults);
+                    }
+                });
+            });
+        }
     }
 });
 
 function displayResults(results) {
     const { errors, success, timestamp, url, email } = results;
-    
-    // Display email if available (always show at top with prominent styling)
+
+    // Always show email section if there's email data, but respect toggle state for content
     if (email && email.trim()) {
         emailSectionEl.classList.remove('hidden');
-        emailContentEl.textContent = email;
+        // Check toggle state to determine whether to show email content
+        chrome.storage.local.get(['emailToggleState'], function(result) {
+            const showEmail = result.emailToggleState !== false; // Default to true if not set
+            if (showEmail) {
+                emailContentEl.textContent = email;
+                emailContentEl.style.display = 'block';
+            } else {
+                emailContentEl.textContent = '';
+                emailContentEl.style.display = 'none';
+            }
+        });
         // Ensure email section is always at the top
         emailSectionEl.style.order = '-1';
     } else {
@@ -131,4 +158,24 @@ function displayResults(results) {
     // Display timestamp
     const date = new Date(timestamp);
     timestampEl.textContent = `Last checked: ${date.toLocaleString()}`;
+}
+
+function refreshOverlayNotification(showEmail) {
+    console.log('L1 Annotation Linter: Refreshing overlay notification with showEmail:', showEmail);
+    // Send message to content script to refresh the overlay notification
+    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+        if (tabs[0]) {
+            chrome.tabs.sendMessage(tabs[0].id, {
+                type: 'REFRESH_NOTIFICATION',
+                showEmail: showEmail
+            }).then(function(response) {
+                console.log('L1 Annotation Linter: Overlay notification refresh message sent successfully');
+            }).catch(function(error) {
+                // Content script might not be ready, which is fine
+                console.log('L1 Annotation Linter: Could not refresh overlay notification:', error.message);
+            });
+        } else {
+            console.log('L1 Annotation Linter: No active tab found to refresh overlay notification');
+        }
+    });
 }
