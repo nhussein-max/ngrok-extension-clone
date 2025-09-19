@@ -1,7 +1,7 @@
 // Popup script to display lint results and handle user actions
 
 // DOM elements - declared globally so storage listener can access them
-let statusEl, resultsEl, errorsEl, timestampEl, emailSectionEl, emailContentEl;
+let statusEl, resultsEl, errorsEl, timestampEl, emailSectionEl, emailContentEl, emailToggleEl;
 
 document.addEventListener('DOMContentLoaded', function() {
     statusEl = document.getElementById('status');
@@ -10,15 +10,27 @@ document.addEventListener('DOMContentLoaded', function() {
     timestampEl = document.getElementById('timestamp');
     emailSectionEl = document.getElementById('email-section');
     emailContentEl = document.getElementById('email-content');
-    
+    emailToggleEl = document.getElementById('email-toggle');
+
     // Load stored results
     loadStoredResults();
+
+    // Load saved toggle state
+    loadToggleState();
+
+    // Add toggle event listener
+    if (emailToggleEl) {
+        emailToggleEl.addEventListener('change', function() {
+            saveToggleState(this.checked);
+            updateEmailVisibility();
+        });
+    }
     
     function loadStoredResults() {
         chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
             const currentTabId = tabs[0].id;
             const tabKey = `lintResults_${currentTabId}`;
-            
+
             chrome.storage.local.get([tabKey, 'lastLintResults'], function(result) {
                 if (result[tabKey]) {
                     // Use tab-specific results if available
@@ -29,6 +41,31 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
         });
+    }
+
+    function loadToggleState() {
+        chrome.storage.local.get(['emailToggleState'], function(result) {
+            const savedState = result.emailToggleState;
+            if (emailToggleEl) {
+                // Default to true (checked) if no saved state
+                emailToggleEl.checked = savedState !== undefined ? savedState : true;
+                updateEmailVisibility();
+            }
+        });
+    }
+
+    function saveToggleState(isChecked) {
+        chrome.storage.local.set({ emailToggleState: isChecked });
+    }
+
+    function updateEmailVisibility() {
+        if (!emailSectionEl) return;
+
+        if (emailToggleEl && emailToggleEl.checked) {
+            emailSectionEl.classList.remove('hidden');
+        } else {
+            emailSectionEl.classList.add('hidden');
+        }
     }
     
     // displayResults function moved to global scope to avoid duplication

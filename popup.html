@@ -100,13 +100,25 @@
         .email-header {
             display: flex;
             align-items: center;
+            justify-content: space-between;
             margin-bottom: 8px;
         }
-        
+
         .email-label {
             font-weight: 600;
             color: #0c5460;
             font-size: 14px;
+        }
+
+        .email-toggle {
+            display: flex;
+            align-items: center;
+            font-size: 12px;
+            color: #0c5460;
+        }
+
+        .email-toggle input[type="checkbox"] {
+            margin-right: 4px;
         }
         
         .email-content {
@@ -135,6 +147,10 @@
     <div id="email-section" class="email-section hidden">
         <div class="email-header">
             <span class="email-label">📧 Email</span>
+            <label class="email-toggle">
+                <input type="checkbox" id="email-toggle" checked>
+                Show
+            </label>
         </div>
         <div id="email-content" class="email-content"></div>
     </div>
