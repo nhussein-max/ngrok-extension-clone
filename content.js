@@ -97,30 +97,30 @@ function displayLintResults(errors, success, source, email) {
     
     if (success) {
         notification.innerHTML = `
+            ${email ? `<div style="font-size: 14px; color: #155724; margin-bottom: 12px; padding: 10px; background: #d1ecf1; border-radius: 4px; border: 1px solid #bee5eb; font-weight: 600;">📧 ${email}</div>` : ''}
             <div style="display: flex; align-items: center; margin-bottom: 8px;">
                 <span style="color: #28a745; margin-right: 8px;">${isFromSave ? '💾' : '✅'}</span>
                 <strong>${isFromSave ? 'Saved Successfully' : 'Annotation Valid'}</strong>
             </div>
-            ${email ? `<div style="font-size: 14px; color: #155724; margin-bottom: 12px; padding: 10px; background: #d1ecf1; border-radius: 4px; border: 1px solid #bee5eb; font-weight: 600;">📧 ${email}</div>` : ''}
             <div style="font-family: monospace; font-size: 13px;">No issues found.</div>
         `;
     } else if (isIncomplete) {
         notification.innerHTML = `
+            ${email ? `<div style="font-size: 14px; color: #856404; margin-bottom: 12px; padding: 10px; background: #fff3cd; border-radius: 4px; border: 1px solid #ffeaa7; font-weight: 600;">📧 ${email}</div>` : ''}
             <div style="display: flex; align-items: center; margin-bottom: 8px;">
                 <span style="color: #ffc107; margin-right: 8px;">⏳</span>
                 <strong>Task Not Complete</strong>
             </div>
-            ${email ? `<div style="font-size: 14px; color: #856404; margin-bottom: 12px; padding: 10px; background: #fff3cd; border-radius: 4px; border: 1px solid #ffeaa7; font-weight: 600;">📧 ${email}</div>` : ''}
             <div style="font-family: monospace; font-size: 13px;">${isFromSave ? 'Saved with incomplete data.' : 'Annotation data is incomplete.'}</div>
         `;
     } else {
         const errorList = errors.map(error => `- ${error}`).join('\n');
         notification.innerHTML = `
+            ${email ? `<div style="font-size: 14px; color: #721c24; margin-bottom: 12px; padding: 10px; background: #f8d7da; border-radius: 4px; border: 1px solid #f5c6cb; font-weight: 600;">📧 ${email}</div>` : ''}
             <div style="display: flex; align-items: center; margin-bottom: 8px;">
                 <span style="color: #dc3545; margin-right: 8px;">❌</span>
                 <strong>${isFromSave ? 'Saved with Issues' : 'Issues Found'} (${errors.length})</strong>
             </div>
-            ${email ? `<div style="font-size: 14px; color: #721c24; margin-bottom: 12px; padding: 10px; background: #f8d7da; border-radius: 4px; border: 1px solid #f5c6cb; font-weight: 600;">📧 ${email}</div>` : ''}
             <pre style="font-family: monospace; font-size: 11px; margin: 0; white-space: pre-wrap; max-height: 200px; overflow-y: auto;">${errorList}</pre>
         `;
     }

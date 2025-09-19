@@ -31,41 +31,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    function displayResults(results) {
-        const { errors, success, timestamp, url, email } = results;
-        
-        // Display email if available (always show at top)
-        if (email) {
-            emailSectionEl.classList.remove('hidden');
-            emailContentEl.textContent = email;
-        } else {
-            emailSectionEl.classList.add('hidden');
-        }
-        
-        // Update status
-        statusEl.className = `status ${success ? 'success' : 'error'}`;
-        statusEl.innerHTML = `
-            <div class="status-icon">${success ? '✅' : '❌'}</div>
-            <div class="status-text">
-                ${success ? 'No issues found' : `${errors.length} issue${errors.length === 1 ? '' : 's'} found`}
-            </div>
-        `;
-        
-        // Show results section
-        resultsEl.classList.remove('hidden');
-        
-        // Display errors in Python script format
-        if (!success) {
-            const errorList = errors.map(error => `- ${escapeHtml(error)}`).join('\n');
-            errorsEl.innerHTML = `<pre style="white-space: pre-wrap; font-family: monospace; font-size: 12px; margin: 0; background: #f8f9fa; padding: 12px; border-radius: 4px; border: 1px solid #e9ecef;">${errorList}</pre>`;
-        } else {
-            errorsEl.innerHTML = '<div style="color: #28a745; font-weight: 500;">No issues found.</div>';
-        }
-        
-        // Display timestamp
-        const date = new Date(timestamp);
-        timestampEl.textContent = `Last checked: ${date.toLocaleString()}`;
-    }
+    // displayResults function moved to global scope to avoid duplication
 });
 
 // Helper function for escaping HTML (needed by global displayResults)
@@ -95,10 +61,12 @@ chrome.storage.onChanged.addListener(function(changes, area) {
 function displayResults(results) {
     const { errors, success, timestamp, url, email } = results;
     
-    // Display email if available (always show at top)
-    if (email) {
+    // Display email if available (always show at top with prominent styling)
+    if (email && email.trim()) {
         emailSectionEl.classList.remove('hidden');
         emailContentEl.textContent = email;
+        // Ensure email section is always at the top
+        emailSectionEl.style.order = '-1';
     } else {
         emailSectionEl.classList.add('hidden');
     }
