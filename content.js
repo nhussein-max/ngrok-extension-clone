@@ -43,10 +43,10 @@ new MutationObserver(() => {
 // Listen for messages from injected script
 window.addEventListener('message', function(event) {
     if (event.source !== window) return;
-    
+
     if (event.data.type === 'ANNOTATION_DATA') {
         console.log('L1 Annotation Linter: Received annotation data', event.data.data);
-        
+
         // Send to background script for processing
         chrome.runtime.sendMessage({
             type: 'LINT_ANNOTATION',
@@ -59,10 +59,24 @@ window.addEventListener('message', function(event) {
     }
 });
 
+// Listen for storage changes to update email toggle behavior in real-time
+chrome.storage.onChanged.addListener(function(changes, area) {
+    if (area === 'local' && changes.emailToggleState) {
+        console.log('L1 Annotation Linter: Email toggle state changed to:', changes.emailToggleState.newValue);
+        // The next notification will automatically use the new toggle state
+        // No need to manually update existing notifications as they auto-dismiss
+    }
+});
+
 // Listen for lint results from background script
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.type === 'LINT_RESULTS') {
-        displayLintResults(message.errors, message.success, message.source, message.email);
+        // Check email toggle state before displaying
+        chrome.storage.local.get(['emailToggleState'], function(result) {
+            const showEmail = result.emailToggleState !== false; // Default to true if not set
+            const emailToShow = showEmail ? message.email : null;
+            displayLintResults(message.errors, message.success, message.source, emailToShow);
+        });
     }
 });
 
