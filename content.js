@@ -75,6 +75,7 @@ window.addEventListener('message', function(event) {
             source: event.data.source || 'response',
             isHistoryData: event.data.isHistoryData || false,
             historyArray: event.data.historyArray || null,
+            metadata: event.data.metadata || null,
             emailToggleState: event.data.emailToggleState
         });
     }

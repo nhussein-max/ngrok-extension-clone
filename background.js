@@ -7,9 +7,13 @@ console.log('L1 Annotation Linter: Background script loaded');
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.type === 'LINT_ANNOTATION') {
         console.log('L1 Annotation Linter: Processing annotation data');
+        console.log('L1 Annotation Linter: Metadata available:', message.metadata ? 'Yes' : 'No');
+        if (message.metadata) {
+            console.log('L1 Annotation Linter: Metadata keys:', Object.keys(message.metadata));
+        }
         
         try {
-            const errors = lintAnnotation(message.data);
+            const errors = lintAnnotation(message.data, message.metadata);
             const success = errors.length === 0;
             const isFromSave = message.source === 'save';
             

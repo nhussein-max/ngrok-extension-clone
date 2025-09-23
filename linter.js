@@ -50,7 +50,7 @@ function ratingText(r) {
     }
 }
 
-function lintAnnotation(jsonData) {
+function lintAnnotation(jsonData, metadata = null) {
     /**
      * Performs basic linting checks on the JSON annotation data.
      * 
@@ -58,6 +58,9 @@ function lintAnnotation(jsonData) {
      * - Mismatch between aspect_ratings and model_issues tables.
      * - Consistency for base response rating and issues.
      * - Consistency between preferences and issues.
+     * 
+     * @param {Object} jsonData - The annotation data to lint
+     * @param {Object} metadata - Optional metadata containing model_X to model name mappings
      * 
      * Returns a list of error messages. If empty, no issues found.
      */
@@ -162,24 +165,69 @@ function lintAnnotation(jsonData) {
             responseHasIssue[letter] = hasIssue;
         }
         
-        // Build mapping from model names to letters by matching responses order with table columns
-        // The table columns after "Model A" correspond to the responses in the order they appear
+        // Build mapping from model names to letters using metadata
+        if (metadata && typeof metadata === 'object') {
+            // Use provided metadata parameter first
+            console.log('L1 Annotation Linter: Using provided metadata for model mapping:', metadata);
+            for (const [key, modelName] of Object.entries(metadata)) {
+                if (key.startsWith('model_')) {
+                    const letter = key.split('_')[1]; // Extract letter from model_B, model_C, etc.
+                    if (letter !== 'A') { // Don't map model_A since it's always the base response
+                        modelToLetterMap[modelName] = letter;
+                        console.log(`L1 Annotation Linter: Mapped ${modelName} -> ${letter}`);
+                    }
+                }
+            }
+        } else if ('metadata' in jsonData) {
+            // Fallback to metadata in jsonData (legacy support)
+            const metadataFromJson = jsonData.metadata;
+            console.log('L1 Annotation Linter: Using metadata from jsonData for model mapping:', metadataFromJson);
+            for (const [key, modelName] of Object.entries(metadataFromJson)) {
+                if (key.startsWith('model_')) {
+                    const letter = key.split('_')[1]; // Extract letter from model_B, model_C, etc.
+                    if (letter !== 'A') { // Don't map model_A since it's always the base response
+                        modelToLetterMap[modelName] = letter;
+                        console.log(`L1 Annotation Linter: Mapped ${modelName} -> ${letter}`);
+                    }
+                }
+            }
+        } else {
+            // Fallback to old method if no metadata is available
+            console.log('L1 Annotation Linter: No metadata available, using fallback mapping method');
+            if ('responses' in jsonData) {
+                const responseModels = Object.keys(jsonData.responses);
+                let responseIndex = 0;
+                for (let colIdx = 0; colIdx < colHeaders.length; colIdx++) {
+                    const header = colHeaders[colIdx];
+                    const letter = header.split(' ').pop();
+                    
+                    if (letter === 'A') {
+                        // Model A is always the base response
+                        continue;
+                    } else if (responseIndex < responseModels.length) {
+                        // Map this model to this letter
+                        const modelName = responseModels[responseIndex];
+                        modelToLetterMap[modelName] = letter;
+                        responseIndex++;
+                    }
+                }
+            }
+        }
+        
+        // Validate that we have mappings for all response models
         if ('responses' in jsonData) {
             const responseModels = Object.keys(jsonData.responses);
-            let responseIndex = 0;
-            for (let colIdx = 0; colIdx < colHeaders.length; colIdx++) {
-                const header = colHeaders[colIdx];
-                const letter = header.split(' ').pop();
-                
-                if (letter === 'A') {
-                    // Model A is always the base response
-                    continue;
-                } else if (responseIndex < responseModels.length) {
-                    // Map this model to this letter
-                    const modelName = responseModels[responseIndex];
-                    modelToLetterMap[modelName] = letter;
-                    responseIndex++;
+            const unmappedModels = [];
+            for (const model of responseModels) {
+                if (!modelToLetterMap[model]) {
+                    unmappedModels.push(model);
                 }
+            }
+            if (unmappedModels.length > 0) {
+                console.warn('L1 Annotation Linter: Some models could not be mapped to letters:', unmappedModels);
+                console.log('L1 Annotation Linter: Current mapping:', modelToLetterMap);
+                console.log('L1 Annotation Linter: Available metadata:', metadata);
+                console.log('L1 Annotation Linter: Column headers:', colHeaders);
             }
         }
     } else {
