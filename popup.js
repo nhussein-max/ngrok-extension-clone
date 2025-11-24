@@ -399,16 +399,20 @@ function displayResults(results, checkOnly = false) {
             patchEl.innerHTML = `
                 <span class="patch-icon">${statusIcon}</span>
                 <span class="patch-name">${escapeHtml(patchName)}</span>
-                <span class="patch-status">${statusText}</span>
+                <span class="patch-status">${statusText}${hasOutput ? ' (click for details)' : ''}</span>
                 ${patch.local_path ? `<button class="vscode-btn">VS Code</button>` : ''}
             `;
 
-            // Add click handler for test output
+            // Add click handler for output (test output or apply error)
             if (hasOutput) {
                 patchEl.querySelector('.patch-name').style.cursor = 'pointer';
-                patchEl.querySelector('.patch-name').addEventListener('click', () => {
-                    showTestOutput(patchName, patch.test_output);
-                });
+                patchEl.querySelector('.patch-status').style.cursor = 'pointer';
+                const showOutput = () => {
+                    const title = patch.applied ? `Test Output: ${patchName}` : `Apply Error: ${patchName}`;
+                    showTestOutput(title, patch.test_output);
+                };
+                patchEl.querySelector('.patch-name').addEventListener('click', showOutput);
+                patchEl.querySelector('.patch-status').addEventListener('click', showOutput);
             }
 
             // Add click handler for VS Code button (instant - opens cached folder)
@@ -448,13 +452,13 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-function showTestOutput(patchName, output) {
+function showTestOutput(titleText, output) {
     const section = document.getElementById('test-output-section');
     const title = document.getElementById('test-output-title');
     const outputEl = document.getElementById('test-output');
     const closeBtn = document.getElementById('test-output-close');
 
-    title.textContent = `Test Output: ${patchName}`;
+    title.textContent = titleText;
     outputEl.textContent = output;
     section.classList.remove('hidden');
 

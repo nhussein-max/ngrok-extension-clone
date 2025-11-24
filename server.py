@@ -103,8 +103,8 @@ def stop_and_remove_container(container_name: str):
     subprocess.run(f"{CONTAINER_ENGINE} rm {container_name}", shell=True, capture_output=True)
 
 
-def apply_patch_in_container(container_id: str, patch_content: str, target_dir: str = "/testbed") -> bool:
-    """Apply a patch inside the container."""
+def apply_patch_in_container(container_id: str, patch_content: str, target_dir: str = "/testbed") -> tuple[bool, str]:
+    """Apply a patch inside the container. Returns (success, error_message)."""
     with tempfile.NamedTemporaryFile(mode="w", suffix=".patch", delete=False) as f:
         f.write(patch_content)
         patch_file = f.name
@@ -114,13 +114,16 @@ def apply_patch_in_container(container_id: str, patch_content: str, target_dir: 
         copy_cmd = f"{CONTAINER_ENGINE} cp {patch_file} {container_id}:/tmp/patch.patch"
         result = subprocess.run(copy_cmd, shell=True, capture_output=True, text=True)
         if result.returncode != 0:
-            return False
+            return False, f"Failed to copy patch: {result.stderr}"
 
         # Apply patch
         apply_cmd = f"{CONTAINER_ENGINE} exec {container_id} bash -c 'cd {target_dir} && git apply /tmp/patch.patch'"
         apply_result = subprocess.run(apply_cmd, shell=True, capture_output=True, text=True)
 
-        return apply_result.returncode == 0
+        if apply_result.returncode != 0:
+            error_output = apply_result.stderr or apply_result.stdout
+            return False, error_output.strip()
+        return True, ""
     finally:
         os.unlink(patch_file)
 
@@ -256,14 +259,15 @@ def validate_task(annotation_data: dict, run_tests: bool = True) -> ValidationRe
                 continue
 
             # Apply patch
-            applied = apply_patch_in_container(container_name, patch_content)
+            applied, apply_error = apply_patch_in_container(container_name, patch_content)
 
             if not applied:
                 patch_results.append(PatchResult(
                     patch_key=patch_key,
                     applied=False,
                     tests_passed=None,
-                    error="Failed to apply patch"
+                    error=f"Failed to apply patch: {apply_error}" if apply_error else "Failed to apply patch",
+                    test_output=apply_error  # Store error in test_output so it's clickable
                 ))
                 continue
 
