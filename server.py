@@ -62,6 +62,33 @@ def image_exists(image_name: str) -> bool:
     return result.returncode == 0
 
 
+def ensure_base_image() -> tuple[bool, str]:
+    """Ensure base_image:latest exists, build if not."""
+    if image_exists("base_image:latest"):
+        return True, ""
+
+    # Build base image from base_image.Dockerfile
+    base_dockerfile = os.path.join(os.path.dirname(__file__), "base_image.Dockerfile")
+    if not os.path.exists(base_dockerfile):
+        return False, "base_image:latest not found and base_image.Dockerfile missing"
+
+    print("Building base_image:latest (this may take a while)...")
+    build_cmd = f"{CONTAINER_ENGINE} build -t base_image:latest --platform=linux/amd64 -f {base_dockerfile} {os.path.dirname(base_dockerfile)}"
+    result = subprocess.run(
+        build_cmd,
+        shell=True,
+        capture_output=True,
+        text=True,
+        timeout=1800  # 30 minute timeout for base image
+    )
+
+    if result.returncode != 0:
+        return False, f"Failed to build base_image: {result.stderr}"
+
+    print("base_image:latest built successfully")
+    return True, ""
+
+
 def build_container(image_name: str, dockerfile_txt: str, force: bool = False) -> tuple[bool, str, bool]:
     """Build a container from Dockerfile text.
 
@@ -221,6 +248,18 @@ def validate_task(annotation_data: dict, run_tests: bool = True) -> ValidationRe
 
     image_name = f"l1-validate-{prompt_uid}"
     container_name = f"{image_name}-container"
+
+    # Ensure base_image exists (auto-build if needed)
+    base_ok, base_error = ensure_base_image()
+    if not base_ok:
+        return ValidationResult(
+            success=False,
+            container_built=False,
+            patch_results=[],
+            error=base_error,
+            container_cached=False,
+            tests_executed=False
+        )
 
     # Build container
     try:
