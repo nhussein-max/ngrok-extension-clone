@@ -32,6 +32,7 @@ class PatchResult:
     tests_passed: Optional[bool] = None
     error: Optional[str] = None
     test_output: Optional[str] = None
+    local_path: Optional[str] = None  # Path to cached patched files
 
 
 @dataclass
@@ -50,8 +51,19 @@ def extract_value(field):
     return field
 
 
-def build_container(image_name: str, dockerfile_txt: str) -> tuple[bool, str]:
+def image_exists(image_name: str) -> bool:
+    """Check if a Docker image already exists."""
+    check_cmd = f"{CONTAINER_ENGINE} image inspect {image_name}"
+    result = subprocess.run(check_cmd, shell=True, capture_output=True)
+    return result.returncode == 0
+
+
+def build_container(image_name: str, dockerfile_txt: str, force: bool = False) -> tuple[bool, str]:
     """Build a container from Dockerfile text."""
+    # Skip build if image already exists (unless forced)
+    if not force and image_exists(image_name):
+        return True, ""
+
     with tempfile.TemporaryDirectory() as tmpdir:
         dockerfile_path = os.path.join(tmpdir, "Dockerfile")
 
@@ -255,6 +267,13 @@ def validate_task(annotation_data: dict, run_tests: bool = True) -> ValidationRe
                 ))
                 continue
 
+            # Save patched files to local cache
+            patch_name = patch_key.replace('_diff', '').replace('_patch', '')
+            local_path = os.path.expanduser(f"~/L1-patches/{prompt_uid}/{patch_name}")
+            os.makedirs(local_path, exist_ok=True)
+            copy_cmd = f"{CONTAINER_ENGINE} cp {container_name}:/testbed/. {local_path}"
+            subprocess.run(copy_cmd, shell=True, capture_output=True)
+
             # Run tests if requested
             if run_tests:
                 tests_passed, test_output = run_tests_in_container(container_name, test_scripts)
@@ -264,7 +283,8 @@ def validate_task(annotation_data: dict, run_tests: bool = True) -> ValidationRe
                     applied=True,
                     tests_passed=tests_passed,
                     error=None if tests_passed else "Tests failed",
-                    test_output=test_output
+                    test_output=test_output,
+                    local_path=local_path
                 ))
             else:
                 # Just check if patch applies
@@ -273,7 +293,8 @@ def validate_task(annotation_data: dict, run_tests: bool = True) -> ValidationRe
                     applied=True,
                     tests_passed=None,  # Not tested
                     error=None,
-                    test_output=None
+                    test_output=None,
+                    local_path=local_path
                 ))
 
             # Revert patch for next iteration
@@ -297,7 +318,8 @@ def validate_task(annotation_data: dict, run_tests: bool = True) -> ValidationRe
                 "applied": r.applied,
                 "tests_passed": r.tests_passed,
                 "error": r.error,
-                "test_output": r.test_output
+                "test_output": r.test_output,
+                "local_path": r.local_path
             } for r in patch_results],
             error=None
         )
@@ -350,74 +372,33 @@ def validate():
 
 @app.route("/open-patch", methods=["POST"])
 def open_patch():
-    """Open a patch in VS Code by copying files from container."""
+    """Open a cached patch folder in VS Code (instant - no container needed)."""
     try:
         data = request.get_json()
+        local_path = data.get("local_path", "")
 
-        dockerfile = extract_value(data.get("dockerfile", ""))
-        patch = extract_value(data.get("patch", ""))
-        patch_name = data.get("patch_name", "patch")
-        prompt_uid = extract_value(data.get("prompt_uid", "unknown"))
-
-        if not dockerfile or not patch:
+        if not local_path:
             return jsonify({
                 "success": False,
-                "error": "Missing dockerfile or patch"
+                "error": "Missing local_path"
             }), 400
 
-        image_name = f"l1-validate-{prompt_uid}"
-        container_name = f"{image_name}-vscode"
+        # Expand ~ in path
+        local_path = os.path.expanduser(local_path)
 
-        # Build container (may reuse cached image)
-        built, error = build_container(image_name, dockerfile)
-        if not built:
+        if not os.path.exists(local_path):
             return jsonify({
                 "success": False,
-                "error": f"Failed to build container: {error}"
-            })
+                "error": f"Path not found: {local_path}"
+            }), 404
 
-        # Start container
-        started, error = start_container(image_name, container_name)
-        if not started:
-            return jsonify({
-                "success": False,
-                "error": f"Failed to start container: {error}"
-            })
+        # Open VS Code instantly
+        subprocess.run(f"code {local_path}", shell=True)
 
-        try:
-            # Apply patch
-            applied = apply_patch_in_container(container_name, patch)
-            if not applied:
-                return jsonify({
-                    "success": False,
-                    "error": "Failed to apply patch"
-                })
-
-            # Create output directory
-            output_dir = os.path.expanduser(f"~/L1-patches/{prompt_uid}/{patch_name}")
-            os.makedirs(output_dir, exist_ok=True)
-
-            # Copy files from container to local
-            copy_cmd = f"{CONTAINER_ENGINE} cp {container_name}:/testbed/. {output_dir}"
-            result = subprocess.run(copy_cmd, shell=True, capture_output=True, text=True)
-
-            if result.returncode != 0:
-                return jsonify({
-                    "success": False,
-                    "error": f"Failed to copy files: {result.stderr}"
-                })
-
-            # Open VS Code
-            vscode_cmd = f"code {output_dir}"
-            subprocess.run(vscode_cmd, shell=True)
-
-            return jsonify({
-                "success": True,
-                "path": output_dir
-            })
-
-        finally:
-            stop_and_remove_container(container_name)
+        return jsonify({
+            "success": True,
+            "path": local_path
+        })
 
     except Exception as e:
         return jsonify({

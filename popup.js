@@ -400,7 +400,7 @@ function displayResults(results, checkOnly = false) {
                 <span class="patch-icon">${statusIcon}</span>
                 <span class="patch-name">${escapeHtml(patchName)}</span>
                 <span class="patch-status">${statusText}</span>
-                ${patch.applied ? `<button class="vscode-btn" data-patch-key="${escapeHtml(patch.patch_key)}">VS Code</button>` : ''}
+                ${patch.local_path ? `<button class="vscode-btn">VS Code</button>` : ''}
             `;
 
             // Add click handler for test output
@@ -411,12 +411,12 @@ function displayResults(results, checkOnly = false) {
                 });
             }
 
-            // Add click handler for VS Code button
+            // Add click handler for VS Code button (instant - opens cached folder)
             const vscodeBtn = patchEl.querySelector('.vscode-btn');
-            if (vscodeBtn) {
+            if (vscodeBtn && patch.local_path) {
                 vscodeBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    openPatchInVSCode(patch.patch_key, vscodeBtn);
+                    openPatchInVSCode(patch.local_path, vscodeBtn);
                 });
             }
 
@@ -463,43 +463,38 @@ function showTestOutput(patchName, output) {
     };
 }
 
-function openPatchInVSCode(patchKey, button) {
-    // Disable button while loading
+function openPatchInVSCode(localPath, button) {
+    // Disable button while opening
     button.disabled = true;
     button.textContent = 'Opening...';
 
-    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-        const currentTabId = tabs[0].id;
+    chrome.runtime.sendMessage({
+        type: 'OPEN_PATCH_IN_VSCODE',
+        localPath: localPath
+    }, function(response) {
+        if (chrome.runtime.lastError) {
+            button.textContent = 'Error';
+            setTimeout(() => {
+                button.textContent = 'VS Code';
+                button.disabled = false;
+            }, 2000);
+            return;
+        }
 
-        chrome.runtime.sendMessage({
-            type: 'OPEN_PATCH_IN_VSCODE',
-            tabId: currentTabId,
-            patchKey: patchKey
-        }, function(response) {
-            if (chrome.runtime.lastError) {
-                button.textContent = 'Error';
-                setTimeout(() => {
-                    button.textContent = 'VS Code';
-                    button.disabled = false;
-                }, 2000);
-                return;
-            }
-
-            if (response && response.success) {
-                button.textContent = 'Opened!';
-                setTimeout(() => {
-                    button.textContent = 'VS Code';
-                    button.disabled = false;
-                }, 2000);
-            } else {
-                button.textContent = 'Error';
-                console.error('Failed to open in VS Code:', response?.error);
-                setTimeout(() => {
-                    button.textContent = 'VS Code';
-                    button.disabled = false;
-                }, 2000);
-            }
-        });
+        if (response && response.success) {
+            button.textContent = 'Opened!';
+            setTimeout(() => {
+                button.textContent = 'VS Code';
+                button.disabled = false;
+            }, 1000);
+        } else {
+            button.textContent = 'Error';
+            console.error('Failed to open in VS Code:', response?.error);
+            setTimeout(() => {
+                button.textContent = 'VS Code';
+                button.disabled = false;
+            }, 2000);
+        }
     });
 }
 
