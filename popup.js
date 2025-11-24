@@ -488,10 +488,14 @@ function openPatchInVSCode(localPath, button) {
                 button.disabled = false;
             }, 1000);
         } else {
+            const errorMsg = response?.error || 'Unknown error';
             button.textContent = 'Error';
-            console.error('Failed to open in VS Code:', response?.error);
+            button.title = errorMsg;
+            console.error('Failed to open in VS Code:', errorMsg);
+            alert('VS Code Error: ' + errorMsg);
             setTimeout(() => {
                 button.textContent = 'VS Code';
+                button.title = '';
                 button.disabled = false;
             }, 2000);
         }
