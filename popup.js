@@ -554,17 +554,26 @@ function displayMoreInfo(data) {
     const rubricsSection = document.getElementById('rubrics-section');
     const rubricsList = document.getElementById('rubrics-list');
     const rubricsCount = document.getElementById('rubrics-count');
+    const scoresSection = document.getElementById('scores-section');
+    const scoresList = document.getElementById('scores-list');
     const rankingSection = document.getElementById('ranking-section');
     const rankingContent = document.getElementById('ranking-content');
 
     // Extract rubrics
     const rubrics = data.rubrics?.items || [];
 
+    // Extract ranking scores
+    const rankingScores = extractValue(data.overall_preference_rating);
+
     // Extract ranking explanation
     const rankingExplanation = extractValue(data.overall_preference_explanation);
 
     // Check if we have any info to show
-    if (rubrics.length === 0 && !rankingExplanation) {
+    const hasRubrics = rubrics.length > 0;
+    const hasScores = Array.isArray(rankingScores) && rankingScores.length > 0;
+    const hasExplanation = !!rankingExplanation;
+
+    if (!hasRubrics && !hasScores && !hasExplanation) {
         moreInfoSection.classList.add('hidden');
         return;
     }
@@ -572,7 +581,7 @@ function displayMoreInfo(data) {
     moreInfoSection.classList.remove('hidden');
 
     // Display rubrics
-    if (rubrics.length > 0) {
+    if (hasRubrics) {
         rubricsSection.classList.remove('hidden');
         rubricsCount.textContent = `(${rubrics.length})`;
 
@@ -613,13 +622,39 @@ function displayMoreInfo(data) {
         rubricsSection.classList.add('hidden');
     }
 
+    // Display ranking scores
+    if (hasScores) {
+        scoresSection.classList.remove('hidden');
+        scoresList.innerHTML = rankingScores.map(score => {
+            const name = formatModelName(score.id || '');
+            const rating = score.rating || 0;
+            return `
+                <div class="score-item">
+                    <span class="score-name">${escapeHtml(name)}</span>
+                    <span class="score-value score-${rating}">${rating}</span>
+                </div>
+            `;
+        }).join('');
+    } else {
+        scoresSection.classList.add('hidden');
+    }
+
     // Display ranking explanation
-    if (rankingExplanation) {
+    if (hasExplanation) {
         rankingSection.classList.remove('hidden');
         rankingContent.textContent = rankingExplanation;
     } else {
         rankingSection.classList.add('hidden');
     }
+}
+
+// Format model name from id (e.g., "response_grok_a" -> "Grok A")
+function formatModelName(id) {
+    return id
+        .replace('response_', '')
+        .split('_')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
 }
 
 // Parse rubric text to extract type and validate format
