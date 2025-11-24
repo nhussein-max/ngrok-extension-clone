@@ -78,10 +78,16 @@ function displayLoadedData(data) {
     const noDataEl = document.getElementById('no-data');
     const loadedDataEl = document.getElementById('loaded-data');
     const runSectionEl = document.getElementById('run-section');
+    const taskLabelsEl = document.getElementById('task-labels');
 
     // Extract values
     const dockerfile = extractValue(data.dockerfile);
     const testScripts = extractValue(data.test_scripts);
+
+    // Extract task metadata
+    const language = extractValue(data.language);
+    const promptCategory = extractValue(data.prompt_category);
+    const promptType = extractValue(data.prompt_type);
 
     // Find patches
     const patchKeys = Object.keys(data).filter(key =>
@@ -108,6 +114,22 @@ function displayLoadedData(data) {
     noDataEl.classList.add('hidden');
     loadedDataEl.classList.remove('hidden');
     runSectionEl.classList.remove('hidden');
+
+    // Display task labels
+    let labelsHtml = '';
+    if (language) {
+        labelsHtml += `<span class="task-label language"><span class="task-label-icon">💻</span>${escapeHtml(language)}</span>`;
+    }
+    if (promptCategory) {
+        const categoryDisplay = formatCategoryName(promptCategory);
+        labelsHtml += `<span class="task-label category"><span class="task-label-icon">📁</span>${escapeHtml(categoryDisplay)}</span>`;
+    }
+    if (promptType) {
+        const typeDisplay = formatTypeName(promptType);
+        labelsHtml += `<span class="task-label type"><span class="task-label-icon">🏷️</span>${escapeHtml(typeDisplay)}</span>`;
+    }
+    taskLabelsEl.innerHTML = labelsHtml;
+    taskLabelsEl.style.display = labelsHtml ? 'flex' : 'none';
 
     // Update dockerfile status
     const dockerfileIcon = document.getElementById('dockerfile-icon');
@@ -681,4 +703,24 @@ function parseRubric(text) {
             cleanText: text.trim()
         };
     }
+}
+
+// Format prompt category name (e.g., "create_code" -> "Create Code")
+function formatCategoryName(category) {
+    const categoryMap = {
+        'create_code': 'Create Code',
+        'refactor_code': 'Refactor Code',
+        'fix_code': 'Fix Code'
+    };
+    return categoryMap[category] || category.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+}
+
+// Format prompt type name (e.g., "zero_to_one" -> "0→1")
+function formatTypeName(type) {
+    const typeMap = {
+        'zero_to_one': '0→1',
+        '0_to_1': '0→1',
+        'iteration': 'Iteration'
+    };
+    return typeMap[type] || type.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 }
