@@ -55,7 +55,7 @@ function loadStoredData() {
                 displayLoadedData(result[tabKey]);
             }
             if (result[resultsKey]) {
-                displayResults(result[resultsKey]);
+                displayResults(result[resultsKey], result[resultsKey].checkOnly);
             }
         });
     });
@@ -463,7 +463,8 @@ chrome.storage.onChanged.addListener(function(changes, area) {
                 displayLoadedData(changes[dataKey].newValue);
             }
             if (changes[resultsKey]) {
-                displayResults(changes[resultsKey].newValue);
+                const newResults = changes[resultsKey].newValue;
+                displayResults(newResults, newResults.checkOnly);
             }
         });
     }
