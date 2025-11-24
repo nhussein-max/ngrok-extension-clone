@@ -348,6 +348,84 @@ def validate():
         }), 500
 
 
+@app.route("/open-patch", methods=["POST"])
+def open_patch():
+    """Open a patch in VS Code by copying files from container."""
+    try:
+        data = request.get_json()
+
+        dockerfile = extract_value(data.get("dockerfile", ""))
+        patch = extract_value(data.get("patch", ""))
+        patch_name = data.get("patch_name", "patch")
+        prompt_uid = extract_value(data.get("prompt_uid", "unknown"))
+
+        if not dockerfile or not patch:
+            return jsonify({
+                "success": False,
+                "error": "Missing dockerfile or patch"
+            }), 400
+
+        image_name = f"l1-validate-{prompt_uid}"
+        container_name = f"{image_name}-vscode"
+
+        # Build container (may reuse cached image)
+        built, error = build_container(image_name, dockerfile)
+        if not built:
+            return jsonify({
+                "success": False,
+                "error": f"Failed to build container: {error}"
+            })
+
+        # Start container
+        started, error = start_container(image_name, container_name)
+        if not started:
+            return jsonify({
+                "success": False,
+                "error": f"Failed to start container: {error}"
+            })
+
+        try:
+            # Apply patch
+            applied = apply_patch_in_container(container_name, patch)
+            if not applied:
+                return jsonify({
+                    "success": False,
+                    "error": "Failed to apply patch"
+                })
+
+            # Create output directory
+            output_dir = os.path.expanduser(f"~/L1-patches/{prompt_uid}/{patch_name}")
+            os.makedirs(output_dir, exist_ok=True)
+
+            # Copy files from container to local
+            copy_cmd = f"{CONTAINER_ENGINE} cp {container_name}:/testbed/. {output_dir}"
+            result = subprocess.run(copy_cmd, shell=True, capture_output=True, text=True)
+
+            if result.returncode != 0:
+                return jsonify({
+                    "success": False,
+                    "error": f"Failed to copy files: {result.stderr}"
+                })
+
+            # Open VS Code
+            vscode_cmd = f"code {output_dir}"
+            subprocess.run(vscode_cmd, shell=True)
+
+            return jsonify({
+                "success": True,
+                "path": output_dir
+            })
+
+        finally:
+            stop_and_remove_container(container_name)
+
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+
 @app.route("/validate-single", methods=["POST"])
 def validate_single():
     """Validate a single patch against a task."""

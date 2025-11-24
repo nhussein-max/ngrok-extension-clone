@@ -207,6 +207,52 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return true;
     }
 
+    // Open patch in VS Code
+    if (message.type === 'OPEN_PATCH_IN_VSCODE') {
+        const tabId = message.tabId;
+        const patchKey = message.patchKey;
+        const dataKey = `annotationData_${tabId}`;
+
+        chrome.storage.local.get([dataKey], async function(result) {
+            const data = result[dataKey];
+
+            if (!data) {
+                sendResponse({ success: false, error: 'No annotation data' });
+                return;
+            }
+
+            const dockerfile = extractValue(data.dockerfile);
+            const patch = extractValue(data[patchKey]);
+            const promptUid = extractValue(data.prompt_uid || 'unknown');
+            const patchName = patchKey.replace('_diff', '').replace('_patch', '');
+
+            if (!dockerfile || !patch) {
+                sendResponse({ success: false, error: 'Missing dockerfile or patch' });
+                return;
+            }
+
+            try {
+                const response = await fetch(`${VALIDATION_SERVER_URL}/open-patch`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        dockerfile: dockerfile,
+                        patch: patch,
+                        patch_name: patchName,
+                        prompt_uid: promptUid
+                    })
+                });
+
+                const result = await response.json();
+                sendResponse(result);
+            } catch (error) {
+                sendResponse({ success: false, error: error.message });
+            }
+        });
+
+        return true;
+    }
+
     // Reset badge
     if (message.type === 'RESET_BADGE') {
         chrome.action.setBadgeText({ text: '', tabId: sender.tab.id });
