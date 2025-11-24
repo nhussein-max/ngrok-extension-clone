@@ -4,15 +4,15 @@
     <meta charset="utf-8">
     <style>
         body {
-            width: 400px;
-            max-height: 600px;
+            width: 420px;
+            max-height: 650px;
             margin: 0;
             padding: 16px;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             font-size: 14px;
             line-height: 1.4;
         }
-        
+
         .header {
             display: flex;
             align-items: center;
@@ -20,18 +20,163 @@
             padding-bottom: 12px;
             border-bottom: 1px solid #e0e0e0;
         }
-        
+
         .logo {
             font-size: 20px;
             margin-right: 8px;
         }
-        
+
         .title {
             font-size: 16px;
             font-weight: 600;
             color: #333;
+            flex-grow: 1;
         }
-        
+
+        .server-status {
+            font-size: 11px;
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+
+        .server-status.connected {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .server-status.disconnected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .server-status.checking {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        /* Loaded Data Section */
+        .loaded-data {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 16px;
+        }
+
+        .loaded-data-header {
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #333;
+            display: flex;
+            align-items: center;
+        }
+
+        .loaded-data-header span {
+            margin-right: 6px;
+        }
+
+        .data-item {
+            display: flex;
+            align-items: center;
+            padding: 6px 0;
+            border-bottom: 1px solid #e9ecef;
+            font-size: 13px;
+        }
+
+        .data-item:last-child {
+            border-bottom: none;
+        }
+
+        .data-icon {
+            width: 20px;
+            margin-right: 8px;
+            text-align: center;
+        }
+
+        .data-icon.loaded {
+            color: #28a745;
+        }
+
+        .data-icon.missing {
+            color: #dc3545;
+        }
+
+        .data-label {
+            flex-grow: 1;
+            color: #495057;
+        }
+
+        .data-status {
+            font-size: 11px;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+
+        .data-status.loaded {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .data-status.missing {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        /* Patches List */
+        .patches-list {
+            margin-top: 8px;
+            padding-left: 28px;
+        }
+
+        .patch-tag {
+            display: inline-block;
+            font-size: 11px;
+            padding: 2px 6px;
+            margin: 2px;
+            border-radius: 3px;
+            background: #e9ecef;
+            color: #495057;
+            font-family: monospace;
+        }
+
+        /* Run Button */
+        .run-section {
+            margin-bottom: 16px;
+        }
+
+        .run-button {
+            width: 100%;
+            padding: 12px 16px;
+            font-size: 14px;
+            font-weight: 600;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .run-button.ready {
+            background: #007bff;
+            color: white;
+        }
+
+        .run-button.ready:hover {
+            background: #0056b3;
+        }
+
+        .run-button.running {
+            background: #6c757d;
+            color: white;
+            cursor: wait;
+        }
+
+        .run-button.disabled {
+            background: #e9ecef;
+            color: #6c757d;
+            cursor: not-allowed;
+        }
+
+        /* Status */
         .status {
             display: flex;
             align-items: center;
@@ -39,132 +184,244 @@
             border-radius: 6px;
             margin-bottom: 16px;
         }
-        
+
         .status.success {
             background: #d4edda;
             border: 1px solid #c3e6cb;
             color: #155724;
         }
-        
+
         .status.error {
             background: #f8d7da;
             border: 1px solid #f5c6cb;
             color: #721c24;
         }
-        
+
         .status.waiting {
             background: #fff3cd;
             border: 1px solid #ffeaa7;
             color: #856404;
         }
-        
+
+        .status.warning {
+            background: #fff3cd;
+            border: 1px solid #ffeeba;
+            color: #856404;
+        }
+
+        .status.neutral {
+            background: #e2e3e5;
+            border: 1px solid #d6d8db;
+            color: #383d41;
+        }
+
         .status-icon {
             font-size: 16px;
             margin-right: 8px;
         }
-        
+
         .status-text {
             font-weight: 500;
         }
-        
-        .errors {
+
+        /* Patch Results */
+        .patch-results {
+            margin-bottom: 16px;
+        }
+
+        .patch-results-header {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #333;
+        }
+
+        .patch-item {
+            display: flex;
+            align-items: center;
+            padding: 8px 12px;
+            margin-bottom: 4px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 13px;
+        }
+
+        .patch-item.passed {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+
+        .patch-item.warning {
+            background: #fff3cd;
+            border: 1px solid #ffeeba;
+            color: #856404;
+        }
+
+        .patch-item.failed {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+
+        .patch-item.pending {
+            background: #e9ecef;
+            border: 1px solid #d6d8db;
+            color: #495057;
+        }
+
+        .patch-icon {
+            margin-right: 8px;
+            font-weight: bold;
+        }
+
+        .patch-name {
+            flex-grow: 1;
+        }
+
+        .patch-status {
+            font-size: 11px;
+            opacity: 0.8;
+        }
+
+        .patch-item.clickable {
+            cursor: pointer;
+        }
+
+        .patch-item.clickable:hover {
+            opacity: 0.9;
+        }
+
+        .test-output {
+            margin-top: 8px;
+            padding: 10px;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            border-radius: 4px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 11px;
             max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .test-output-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .test-output-close {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            color: #666;
+        }
+
+        /* Errors */
+        .errors {
+            max-height: 150px;
             overflow-y: auto;
             margin-top: 12px;
         }
-        
-        .error-item {
-            background: #fff;
-            border: 1px solid #f5c6cb;
-            border-radius: 4px;
-            padding: 8px;
-            margin-bottom: 8px;
-            font-size: 13px;
-        }
-        
+
         .timestamp {
             font-size: 12px;
             color: #666;
             margin-top: 12px;
         }
-        
-        .email-section {
-            margin-bottom: 16px;
-            padding: 14px;
-            background: #e8f4fd;
-            border: 1px solid #bee5eb;
-            border-radius: 6px;
-            order: -1; /* Ensure it appears first */
-        }
-        
-        .email-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 8px;
-        }
 
-        .email-label {
-            font-weight: 600;
-            color: #0c5460;
-            font-size: 14px;
-        }
-
-        .email-toggle {
-            display: flex;
-            align-items: center;
-            font-size: 12px;
-            color: #0c5460;
-        }
-
-        .email-toggle input[type="checkbox"] {
-            margin-right: 4px;
-        }
-        
-        .email-content {
-            font-family: monospace;
-            font-size: 13px;
-            color: #0c5460;
-            word-break: break-all;
-            font-weight: 500;
-            background: #ffffff;
-            padding: 8px;
-            border-radius: 4px;
-            border: 1px solid #b8daff;
-        }
-        
         .hidden {
             display: none;
+        }
+
+        /* No Data Message */
+        .no-data {
+            text-align: center;
+            padding: 30px;
+            color: #6c757d;
+        }
+
+        .no-data-icon {
+            font-size: 32px;
+            margin-bottom: 10px;
         }
     </style>
 </head>
 <body>
     <div class="header">
         <div class="logo">🔍</div>
-        <div class="title">L1 Annotation Linter</div>
+        <div class="title">L1 Patch Validator</div>
+        <div id="server-status" class="server-status checking">Checking...</div>
     </div>
-    
-    <div id="email-section" class="email-section hidden">
-        <div class="email-header">
-            <span class="email-label">📧 Email</span>
-            <label class="email-toggle">
-                <input type="checkbox" id="email-toggle" checked>
-                Show
-            </label>
+
+    <!-- No Data State -->
+    <div id="no-data" class="no-data">
+        <div class="no-data-icon">📋</div>
+        <div>Waiting for annotation data...</div>
+        <div style="font-size: 12px; margin-top: 8px;">Navigate to a task page to load data</div>
+    </div>
+
+    <!-- Loaded Data Section -->
+    <div id="loaded-data" class="loaded-data hidden">
+        <div class="loaded-data-header">
+            <span>📦</span> Loaded Data
         </div>
-        <div id="email-content" class="email-content"></div>
+        <div class="data-item">
+            <span id="dockerfile-icon" class="data-icon missing">✗</span>
+            <span class="data-label">Dockerfile</span>
+            <span id="dockerfile-status" class="data-status missing">Missing</span>
+        </div>
+        <div class="data-item">
+            <span id="testscripts-icon" class="data-icon missing">✗</span>
+            <span class="data-label">Test Scripts</span>
+            <span id="testscripts-status" class="data-status missing">Missing</span>
+        </div>
+        <div class="data-item">
+            <span id="patches-icon" class="data-icon missing">✗</span>
+            <span class="data-label">Patches</span>
+            <span id="patches-status" class="data-status missing">0 found</span>
+        </div>
+        <div id="patches-list" class="patches-list hidden"></div>
     </div>
-    
-    <div id="status" class="status waiting">
+
+    <!-- Run Buttons -->
+    <div id="run-section" class="run-section hidden">
+        <button id="check-button" class="run-button disabled" style="margin-bottom: 8px; background: #17a2b8;">Check Patches Apply</button>
+        <button id="run-button" class="run-button disabled">Run Full Validation</button>
+    </div>
+
+    <!-- Status -->
+    <div id="status" class="status waiting hidden">
         <div class="status-icon">⏳</div>
-        <div class="status-text">Waiting for annotation data...</div>
+        <div class="status-text">Ready to validate</div>
     </div>
-    
+
+    <!-- Patch Results -->
+    <div id="patch-results" class="patch-results hidden">
+        <div class="patch-results-header">Validation Results</div>
+        <div id="patch-list"></div>
+    </div>
+
+    <!-- Test Output -->
+    <div id="test-output-section" class="hidden">
+        <div class="test-output-header">
+            <span id="test-output-title">Test Output</span>
+            <button id="test-output-close" class="test-output-close">×</button>
+        </div>
+        <div id="test-output" class="test-output"></div>
+    </div>
+
+    <!-- Errors -->
     <div id="results" class="hidden">
         <div id="errors" class="errors"></div>
         <div id="timestamp" class="timestamp"></div>
     </div>
-    
+
     <script src="popup.js"></script>
 </body>
 </html>

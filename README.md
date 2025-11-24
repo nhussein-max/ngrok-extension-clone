@@ -1,77 +1,135 @@
-## Overview
+# L1 Patch Validator
 
-This repository contains both a Python script and a Chrome browser extension for linting JSON annotation files used in ML model evaluation tasks. Both tools perform the same validation checks:
+A Chrome browser extension with a local Python server for validating code patches in Docker/Podman containers. Automatically captures annotation data from task pages and validates that patches apply correctly and pass tests.
 
-- Mismatches between `aspect_ratings` and `model_issues` tables.
-- Inconsistencies in base response ratings (e.g., rating 7 with issues present).
-- Preference consistency with issues (e.g., no preferring a response with issues over one without).
-- Cannot have an issue and "No Issues" chosen simultaneously on model issues table.
+## Features
 
-## Python Script
+- **Automatic Data Capture**: Intercepts annotation data containing Dockerfiles, patches, and test scripts
+- **Container-Based Validation**: Builds Docker containers and applies patches in isolated environments
+- **Two Validation Modes**:
+  - **Check Patches Apply** (fast): Only verifies patches apply cleanly with `git apply`
+  - **Run Full Validation** (thorough): Applies patches and runs test scripts
+- **Detailed Results**: Color-coded patch status with expandable test output
+- **Tab-Specific State**: Each browser tab maintains its own validation data
 
-The Python script loads `input.json` from the same directory and outputs errors or a success message for each entry (handles single objects or arrays).
+## Requirements
 
-## Browser Extension
+- **Python 3.8+**
+- **Docker** or **Podman** (for container builds)
+- **Chrome** or Chromium-based browser
 
-The Chrome extension automatically detects and validates annotation data in real-time, eliminating the need for manual JSON extraction. It provides:
-- **Automatic detection** of annotation and history endpoints
-- **Real-time validation** with visual feedback
-- **Tab-specific results** for multiple annotation tasks
-- **Copy/export functionality** for results and data
+## Installation
 
-## Installation & Usage
+### 1. Install the Chrome Extension
 
-### Chrome Extension (Recommended)
+1. Open Chrome and navigate to `chrome://extensions/`
+2. Enable "Developer mode" in the top right corner
+3. Click "Load unpacked" and select this folder
+4. The extension icon will appear in your browser toolbar
 
-1. **Install the Extension:**
-   - Open Chrome and navigate to `chrome://extensions/`
-   - Enable "Developer mode" in the top right corner
-   - Click "Load unpacked" and select the `extension` folder
-   - The extension will appear in your extensions list
+### 2. Set Up the Python Server
 
-2. **Usage:**
-   - Navigate to your annotation interface
-   - The extension automatically detects annotation data
-   - View results via on-page notifications or click the extension icon
-   - Use "Copy Results" to get formatted output
-   - Each browser tab maintains its own validation state
+```bash
+# Create virtual environment
+python3 -m venv venv
 
-The JSON should include keys like `base_response`, `responses`, `aspect_ratings`, and `model_issues`.
+# Activate virtual environment
+source venv/bin/activate  # On macOS/Linux
+# or: venv\Scripts\activate  # On Windows
 
-## Features Comparison
-
-| Feature | Python Script | Chrome Extension |
-|---------|---------------|------------------|
-| Manual JSON extraction | ✅ Required | ❌ Automatic |
-| Real-time validation | ❌ | ✅ |
-| Visual feedback | ❌ | ✅ |
-| Tab-specific results | ❌ | ✅ |
-| Copy formatted results | ❌ | ✅ |
-| Export raw data | ❌ | ✅ |
-| Works offline | ✅ | ❌ |
-
-## Output Format
-
-Both tools produce identical output:
-```
-- Error message 1
-- Error message 2
-```
-or
-```
-No issues found.
+# Install dependencies
+pip install -r requirements.txt
 ```
 
-## Extension Features
+### 3. Start the Server
 
-- **Automatic Detection**: Monitors `annotation` and `history` endpoints
-- **Array Handling**: Uses last annotation from history arrays
-- **Tab Isolation**: Each browser tab maintains separate validation state
-- **Visual Feedback**: On-page notifications and extension badge
-- **Copy/Export**: Easy copying of results and raw data export
+```bash
+source venv/bin/activate
+python server.py
+```
 
-## Notes
-- Always double-check results manually.
-- The extension requires annotation data to contain required fields: `base_response`, `responses`, `aspect_ratings`, `model_issues`
-- For multiple annotations (arrays), the extension uses the most recent (last) entry
-- If issues arise or for suggestions/bugs, contact mbasaran@teachx.ai
+The server runs on `http://127.0.0.1:5050`. Keep it running while using the extension.
+
+## Usage
+
+1. **Navigate to a task page** containing annotation data with:
+   - `dockerfile`: The Dockerfile to build the test environment
+   - `test_scripts`: Shell script(s) to run tests
+   - `*_diff` or `*_patch` fields: Code patches to validate
+
+2. **Open the extension popup** by clicking the extension icon
+
+3. **View loaded data**: The popup shows what was captured:
+   - Dockerfile status (loaded/missing)
+   - Test Scripts status (loaded/missing)
+   - Detected patches
+
+4. **Run validation**:
+   - **Check Patches Apply**: Quick check that patches apply cleanly
+   - **Run Full Validation**: Apply patches and run test scripts
+
+5. **Review results**:
+   - **Green (checkmark)**: Patch applies (and tests pass, if running full validation)
+   - **Yellow (warning)**: Patch applies but tests fail
+   - **Red (X)**: Patch fails to apply
+   - Click on any patch to view detailed test output
+
+## Status Indicators
+
+| Icon | Color | Meaning |
+|------|-------|---------|
+| checkmark | Green | Patch applies cleanly / Tests pass |
+| warning | Yellow | Patch applies but tests fail |
+| X | Red | Patch failed to apply |
+
+## How It Works
+
+1. **Data Capture**: The extension injects a script that intercepts network requests containing annotation data
+
+2. **Container Build**: When you run validation, the server builds a Docker container from the provided Dockerfile
+
+3. **Patch Validation**: For each patch:
+   - Apply the patch using `git apply`
+   - Run test scripts (if full validation)
+   - Revert the patch with `git apply -R`
+   - Record results
+
+4. **Results Display**: The popup shows per-patch results with clickable details
+
+## API Endpoints
+
+The validation server exposes:
+
+- `GET /health` - Server health check
+- `POST /validate` - Validate all patches in annotation data
+- `POST /validate?check_only=true` - Only check if patches apply
+- `POST /validate-single` - Validate a single patch
+
+## Troubleshooting
+
+**Server Offline**: Make sure `server.py` is running and accessible at `http://127.0.0.1:5050`
+
+**No Data Loaded**: Navigate to a task page that contains annotation data with the required fields
+
+**Container Build Failed**: Check that Docker/Podman is running and the Dockerfile is valid
+
+**Patch Failed to Apply**: The patch may have conflicts or target files that don't exist in the container
+
+## File Structure
+
+```
+L1-check/
+├── manifest.json      # Extension manifest
+├── background.js      # Service worker (handles validation requests)
+├── content.js         # Content script (bridges injected script to extension)
+├── injected.js        # Injected script (captures network requests)
+├── popup.html         # Extension popup UI
+├── popup.js           # Popup logic
+├── server.py          # Python validation server
+├── requirements.txt   # Python dependencies
+└── README.md          # This file
+```
+
+## Contact
+
+For issues or suggestions, contact mbasaran@teachx.ai

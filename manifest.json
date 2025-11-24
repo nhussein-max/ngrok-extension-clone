@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "L1 Annotation Linter",
-  "version": "1.0.6",
-  "description": "Real-time linting for JSON annotation files used in ML model evaluation tasks",
+  "name": "L1 Patch Validator",
+  "version": "2.0.0",
+  "description": "Container-based patch validation for code annotation tasks",
   "permissions": [
     "activeTab",
     "storage",
@@ -24,7 +24,7 @@
   },
   "action": {
     "default_popup": "popup.html",
-    "default_title": "L1 Annotation Linter"
+    "default_title": "L1 Patch Validator"
   },
   "web_accessible_resources": [
     {
