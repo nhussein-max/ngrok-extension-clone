@@ -263,6 +263,7 @@ function runValidation(checkOnly = false) {
     document.getElementById('patch-results').classList.add('hidden');
     document.getElementById('results').classList.add('hidden');
     document.getElementById('test-output-section').classList.add('hidden');
+    document.getElementById('validation-summary').classList.add('hidden');
 
     chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
         const currentTabId = tabs[0].id;
@@ -300,7 +301,7 @@ function showError(message) {
 }
 
 function displayResults(results, checkOnly = false) {
-    const { errors, success, timestamp, patchResults, validationType } = results;
+    const { errors, success, timestamp, patchResults, validationType, containerBuilt, containerCached, testsExecuted } = results;
 
     const statusEl = document.getElementById('status');
     const patchResultsEl = document.getElementById('patch-results');
@@ -360,6 +361,43 @@ function displayResults(results, checkOnly = false) {
             <div class="status-icon">❌</div>
             <div class="status-text">${errors.length} error${errors.length === 1 ? '' : 's'}</div>
         `;
+    }
+
+    // Show validation summary (container and test status)
+    const validationSummaryEl = document.getElementById('validation-summary');
+    const containerIconEl = document.getElementById('container-icon');
+    const containerLabelEl = document.getElementById('container-label');
+    const testsIconEl = document.getElementById('tests-icon');
+    const testsLabelEl = document.getElementById('tests-label');
+
+    if (validationSummaryEl) {
+        validationSummaryEl.classList.remove('hidden');
+
+        // Container status
+        if (containerBuilt) {
+            containerIconEl.textContent = '✓';
+            containerIconEl.className = 'summary-icon success';
+            containerLabelEl.textContent = containerCached ? 'Container (cached)' : 'Container Built';
+        } else {
+            containerIconEl.textContent = '✗';
+            containerIconEl.className = 'summary-icon failed';
+            containerLabelEl.textContent = 'Container Failed';
+        }
+
+        // Tests status
+        if (checkOnly) {
+            testsIconEl.textContent = '—';
+            testsIconEl.className = 'summary-icon skipped';
+            testsLabelEl.textContent = 'Tests Skipped';
+        } else if (testsExecuted) {
+            testsIconEl.textContent = '✓';
+            testsIconEl.className = 'summary-icon success';
+            testsLabelEl.textContent = 'Tests Ran';
+        } else {
+            testsIconEl.textContent = '✗';
+            testsIconEl.className = 'summary-icon failed';
+            testsLabelEl.textContent = 'Tests Not Run';
+        }
     }
 
     // Show patch results

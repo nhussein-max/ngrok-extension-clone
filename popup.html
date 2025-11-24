@@ -251,6 +251,44 @@
             font-weight: 500;
         }
 
+        /* Validation Summary */
+        .validation-summary {
+            display: flex;
+            gap: 16px;
+            padding: 10px 12px;
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            margin-bottom: 12px;
+        }
+
+        .summary-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+        }
+
+        .summary-icon {
+            font-size: 14px;
+        }
+
+        .summary-icon.success {
+            color: #28a745;
+        }
+
+        .summary-icon.failed {
+            color: #dc3545;
+        }
+
+        .summary-icon.skipped {
+            color: #6c757d;
+        }
+
+        .summary-label {
+            color: #495057;
+        }
+
         /* Patch Results */
         .patch-results {
             margin-bottom: 16px;
@@ -637,6 +675,18 @@
     <div id="status" class="status waiting hidden">
         <div class="status-icon">⏳</div>
         <div class="status-text">Ready to validate</div>
+    </div>
+
+    <!-- Validation Summary -->
+    <div id="validation-summary" class="validation-summary hidden">
+        <div class="summary-item">
+            <span id="container-icon" class="summary-icon">⏳</span>
+            <span id="container-label" class="summary-label">Container</span>
+        </div>
+        <div class="summary-item">
+            <span id="tests-icon" class="summary-icon">⏳</span>
+            <span id="tests-label" class="summary-label">Tests</span>
+        </div>
     </div>
 
     <!-- Patch Results -->

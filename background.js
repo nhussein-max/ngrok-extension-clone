@@ -155,6 +155,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                     timestamp: Date.now(),
                     patchResults: serverResult.patch_results || [],
                     containerBuilt: serverResult.container_built,
+                    containerCached: serverResult.container_cached || false,
+                    testsExecuted: serverResult.tests_executed || false,
                     validationType: 'container',
                     checkOnly: checkOnly
                 };

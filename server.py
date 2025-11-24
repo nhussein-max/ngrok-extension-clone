@@ -42,6 +42,8 @@ class ValidationResult:
     container_built: bool
     patch_results: list
     error: Optional[str] = None
+    container_cached: bool = False
+    tests_executed: bool = False
 
 
 def extract_value(field):
@@ -58,11 +60,14 @@ def image_exists(image_name: str) -> bool:
     return result.returncode == 0
 
 
-def build_container(image_name: str, dockerfile_txt: str, force: bool = False) -> tuple[bool, str]:
-    """Build a container from Dockerfile text."""
+def build_container(image_name: str, dockerfile_txt: str, force: bool = False) -> tuple[bool, str, bool]:
+    """Build a container from Dockerfile text.
+
+    Returns: (success, error_message, was_cached)
+    """
     # Skip build if image already exists (unless forced)
     if not force and image_exists(image_name):
-        return True, ""
+        return True, "", True  # was_cached=True
 
     with tempfile.TemporaryDirectory() as tmpdir:
         dockerfile_path = os.path.join(tmpdir, "Dockerfile")
@@ -80,8 +85,8 @@ def build_container(image_name: str, dockerfile_txt: str, force: bool = False) -
         )
 
         if result.returncode != 0:
-            return False, result.stderr
-        return True, ""
+            return False, result.stderr, False
+        return True, "", False  # was_cached=False (newly built)
 
 
 def start_container(image_name: str, container_name: str) -> tuple[bool, str]:
@@ -217,20 +222,24 @@ def validate_task(annotation_data: dict, run_tests: bool = True) -> ValidationRe
 
     # Build container
     try:
-        built, error = build_container(image_name, dockerfile)
+        built, error, container_cached = build_container(image_name, dockerfile)
         if not built:
             return ValidationResult(
                 success=False,
                 container_built=False,
                 patch_results=[],
-                error=f"Failed to build container: {error}"
+                error=f"Failed to build container: {error}",
+                container_cached=False,
+                tests_executed=False
             )
     except subprocess.TimeoutExpired:
         return ValidationResult(
             success=False,
             container_built=False,
             patch_results=[],
-            error="Container build timed out"
+            error="Container build timed out",
+            container_cached=False,
+            tests_executed=False
         )
 
     # Start container
@@ -240,7 +249,9 @@ def validate_task(annotation_data: dict, run_tests: bool = True) -> ValidationRe
             success=False,
             container_built=True,
             patch_results=[],
-            error=f"Failed to start container: {error}"
+            error=f"Failed to start container: {error}",
+            container_cached=container_cached,
+            tests_executed=False
         )
 
     try:
@@ -314,6 +325,9 @@ def validate_task(annotation_data: dict, run_tests: bool = True) -> ValidationRe
             # For check-only mode, success = all patches applied
             all_passed = all(r.applied for r in patch_results) if patch_results else False
 
+        # Track if tests were executed (run_tests mode and at least one patch was applied)
+        tests_executed = run_tests and any(r.applied for r in patch_results)
+
         return ValidationResult(
             success=all_passed,
             container_built=True,
@@ -325,7 +339,9 @@ def validate_task(annotation_data: dict, run_tests: bool = True) -> ValidationRe
                 "test_output": r.test_output,
                 "local_path": r.local_path
             } for r in patch_results],
-            error=None
+            error=None,
+            container_cached=container_cached,
+            tests_executed=tests_executed
         )
 
     finally:
@@ -363,6 +379,8 @@ def validate():
         return jsonify({
             "success": result.success,
             "container_built": result.container_built,
+            "container_cached": result.container_cached,
+            "tests_executed": result.tests_executed,
             "patch_results": result.patch_results,
             "error": result.error
         })
@@ -432,13 +450,16 @@ def validate_single():
         container_name = f"{image_name}-container"
 
         # Build container
-        built, error = build_container(image_name, dockerfile)
+        built, error, container_cached = build_container(image_name, dockerfile)
         if not built:
             return jsonify({
                 "success": False,
                 "applied": False,
                 "tests_passed": None,
-                "error": f"Failed to build container: {error}"
+                "error": f"Failed to build container: {error}",
+                "container_built": False,
+                "container_cached": False,
+                "tests_executed": False
             })
 
         # Start container
@@ -448,18 +469,24 @@ def validate_single():
                 "success": False,
                 "applied": False,
                 "tests_passed": None,
-                "error": f"Failed to start container: {error}"
+                "error": f"Failed to start container: {error}",
+                "container_built": True,
+                "container_cached": container_cached,
+                "tests_executed": False
             })
 
         try:
             # Apply patch
-            applied = apply_patch_in_container(container_name, patch)
+            applied, apply_error = apply_patch_in_container(container_name, patch)
             if not applied:
                 return jsonify({
                     "success": False,
                     "applied": False,
                     "tests_passed": None,
-                    "error": "Failed to apply patch"
+                    "error": f"Failed to apply patch: {apply_error}" if apply_error else "Failed to apply patch",
+                    "container_built": True,
+                    "container_cached": container_cached,
+                    "tests_executed": False
                 })
 
             # Run tests
@@ -469,7 +496,10 @@ def validate_single():
                 "success": tests_passed,
                 "applied": True,
                 "tests_passed": tests_passed,
-                "error": None if tests_passed else f"Tests failed: {test_output[:500]}"
+                "error": None if tests_passed else f"Tests failed: {test_output[:500]}",
+                "container_built": True,
+                "container_cached": container_cached,
+                "tests_executed": True
             })
 
         finally:
