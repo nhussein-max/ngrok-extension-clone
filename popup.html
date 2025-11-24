@@ -254,7 +254,8 @@
         /* Validation Summary */
         .validation-summary {
             display: flex;
-            gap: 16px;
+            flex-wrap: wrap;
+            gap: 8px 16px;
             padding: 10px 12px;
             background: #f8f9fa;
             border: 1px solid #e9ecef;
@@ -266,7 +267,7 @@
             display: flex;
             align-items: center;
             gap: 6px;
-            font-size: 12px;
+            font-size: 11px;
         }
 
         .summary-icon {
@@ -642,6 +643,7 @@
         <div class="no-data-icon">📋</div>
         <div>Waiting for annotation data...</div>
         <div style="font-size: 12px; margin-top: 8px;">Navigate to a task page to load data</div>
+        <button id="fetch-data-btn" class="run-button" style="margin-top: 12px; padding: 8px 16px; font-size: 12px; width: auto;">Fetch Data from Page</button>
     </div>
 
     <!-- Loaded Data Section -->
@@ -684,8 +686,12 @@
             <span id="container-label" class="summary-label">Container</span>
         </div>
         <div class="summary-item">
+            <span id="base-tests-icon" class="summary-icon">⏳</span>
+            <span id="base-tests-label" class="summary-label">Base Tests</span>
+        </div>
+        <div class="summary-item">
             <span id="tests-icon" class="summary-icon">⏳</span>
-            <span id="tests-label" class="summary-label">Tests</span>
+            <span id="tests-label" class="summary-label">Patch Tests</span>
         </div>
     </div>
 

@@ -157,6 +157,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                     containerBuilt: serverResult.container_built,
                     containerCached: serverResult.container_cached || false,
                     testsExecuted: serverResult.tests_executed || false,
+                    baseTestsPassed: serverResult.base_tests_passed,
+                    baseTestOutput: serverResult.base_test_output,
                     validationType: 'container',
                     checkOnly: checkOnly
                 };
@@ -234,6 +236,76 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.type === 'RESET_BADGE') {
         chrome.action.setBadgeText({ text: '', tabId: sender.tab.id });
         return true;
+    }
+
+    // Fetch data from page (manual trigger)
+    if (message.type === 'FETCH_PAGE_DATA') {
+        const tabId = message.tabId;
+        const url = message.url;
+
+        // Extract task ID from URL
+        const taskMatch = url.match(/\/tasks\/([^\/\?]+)/);
+        if (!taskMatch) {
+            sendResponse({ success: false, error: 'Not on a task page' });
+            return true;
+        }
+
+        const taskId = taskMatch[1];
+
+        // Try to fetch history from API
+        // Construct the API URL based on the page URL
+        const baseUrl = new URL(url).origin;
+        const historyUrl = `${baseUrl}/api/tasks/${taskId}/history`;
+
+        fetch(historyUrl, { credentials: 'include' })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`API returned ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                let annotationData = data;
+
+                // If array, take last item
+                if (Array.isArray(data) && data.length > 0) {
+                    annotationData = data[data.length - 1];
+                }
+
+                // Validate it looks like annotation data
+                const hasDockerfile = 'dockerfile' in annotationData;
+                const hasPatchFields = Object.keys(annotationData).some(k =>
+                    k.endsWith('_diff') || k.endsWith('_patch')
+                );
+
+                if (!hasDockerfile && !hasPatchFields) {
+                    throw new Error('Response does not contain annotation data');
+                }
+
+                // Store the data
+                const dataKey = `annotationData_${tabId}`;
+                chrome.storage.local.set({ [dataKey]: annotationData });
+
+                // Update badge
+                const dockerfile = extractValue(annotationData.dockerfile);
+                const testScripts = extractValue(annotationData.test_scripts);
+
+                if (dockerfile && testScripts) {
+                    chrome.action.setBadgeText({ text: '●', tabId: tabId });
+                    chrome.action.setBadgeBackgroundColor({ color: '#007bff', tabId: tabId });
+                } else {
+                    chrome.action.setBadgeText({ text: '○', tabId: tabId });
+                    chrome.action.setBadgeBackgroundColor({ color: '#6c757d', tabId: tabId });
+                }
+
+                sendResponse({ success: true });
+            })
+            .catch(error => {
+                console.error('Failed to fetch page data:', error);
+                sendResponse({ success: false, error: error.message });
+            });
+
+        return true; // Keep channel open for async
     }
 
     return true;

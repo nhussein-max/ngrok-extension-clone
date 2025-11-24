@@ -26,7 +26,44 @@ document.addEventListener('DOMContentLoaded', function() {
     if (moreInfoToggle) {
         moreInfoToggle.addEventListener('click', toggleMoreInfo);
     }
+
+    // Setup Fetch Data button
+    const fetchDataBtn = document.getElementById('fetch-data-btn');
+    if (fetchDataBtn) {
+        fetchDataBtn.addEventListener('click', fetchDataFromPage);
+    }
 });
+
+function fetchDataFromPage() {
+    const fetchBtn = document.getElementById('fetch-data-btn');
+    if (fetchBtn) {
+        fetchBtn.textContent = 'Fetching...';
+        fetchBtn.disabled = true;
+    }
+
+    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+        const tab = tabs[0];
+
+        // Send message to background to fetch data from page
+        chrome.runtime.sendMessage({
+            type: 'FETCH_PAGE_DATA',
+            tabId: tab.id,
+            url: tab.url
+        }, function(response) {
+            if (fetchBtn) {
+                fetchBtn.textContent = 'Fetch Data from Page';
+                fetchBtn.disabled = false;
+            }
+
+            if (response && response.success) {
+                // Data will be stored and UI will update via storage listener
+                loadStoredData();
+            } else {
+                alert(response?.error || 'Failed to fetch data from page');
+            }
+        });
+    });
+}
 
 function checkServerStatus() {
     const serverStatusEl = document.getElementById('server-status');
@@ -301,7 +338,7 @@ function showError(message) {
 }
 
 function displayResults(results, checkOnly = false) {
-    const { errors, success, timestamp, patchResults, validationType, containerBuilt, containerCached, testsExecuted } = results;
+    const { errors, success, timestamp, patchResults, validationType, containerBuilt, containerCached, testsExecuted, baseTestsPassed, baseTestOutput } = results;
 
     const statusEl = document.getElementById('status');
     const patchResultsEl = document.getElementById('patch-results');
@@ -367,6 +404,8 @@ function displayResults(results, checkOnly = false) {
     const validationSummaryEl = document.getElementById('validation-summary');
     const containerIconEl = document.getElementById('container-icon');
     const containerLabelEl = document.getElementById('container-label');
+    const baseTestsIconEl = document.getElementById('base-tests-icon');
+    const baseTestsLabelEl = document.getElementById('base-tests-label');
     const testsIconEl = document.getElementById('tests-icon');
     const testsLabelEl = document.getElementById('tests-label');
 
@@ -375,28 +414,63 @@ function displayResults(results, checkOnly = false) {
 
         // Container status
         if (containerBuilt) {
-            containerIconEl.textContent = '✓';
+            containerIconEl.textContent = containerCached ? '📦' : '🏗️';
             containerIconEl.className = 'summary-icon success';
             containerLabelEl.textContent = containerCached ? 'Container (cached)' : 'Container Built';
+            containerLabelEl.style.cursor = 'default';
+            containerLabelEl.onclick = null;
         } else {
-            containerIconEl.textContent = '✗';
+            containerIconEl.textContent = '💥';
             containerIconEl.className = 'summary-icon failed';
             containerLabelEl.textContent = 'Container Failed';
+            containerLabelEl.style.cursor = 'pointer';
+            containerLabelEl.onclick = () => {
+                const errorMsg = errors && errors.length > 0 ? errors.join('\n') : 'Unknown error';
+                showTestOutput('Container Build Error', errorMsg);
+            };
         }
 
-        // Tests status
+        // Base tests status (tests run before any patches)
         if (checkOnly) {
-            testsIconEl.textContent = '—';
-            testsIconEl.className = 'summary-icon skipped';
-            testsLabelEl.textContent = 'Tests Skipped';
-        } else if (testsExecuted) {
-            testsIconEl.textContent = '✓';
-            testsIconEl.className = 'summary-icon success';
-            testsLabelEl.textContent = 'Tests Ran';
+            baseTestsIconEl.textContent = '⏭️';
+            baseTestsIconEl.className = 'summary-icon skipped';
+            baseTestsLabelEl.textContent = 'Base Tests Skipped';
+            baseTestsLabelEl.style.cursor = 'default';
+            baseTestsLabelEl.onclick = null;
+        } else if (baseTestsPassed === true) {
+            baseTestsIconEl.textContent = '✅';
+            baseTestsIconEl.className = 'summary-icon success';
+            baseTestsLabelEl.textContent = 'Base Tests Passed';
+            baseTestsLabelEl.style.cursor = 'pointer';
+            baseTestsLabelEl.onclick = () => {
+                showTestOutput('Base Test Output (no patches)', baseTestOutput || 'No output');
+            };
+        } else if (baseTestsPassed === false) {
+            baseTestsIconEl.textContent = '❌';
+            baseTestsIconEl.className = 'summary-icon failed';
+            baseTestsLabelEl.textContent = 'Base Tests Failed';
+            baseTestsLabelEl.style.cursor = 'pointer';
+            baseTestsLabelEl.onclick = () => {
+                showTestOutput('Base Test Output (no patches)', baseTestOutput || 'No output');
+            };
         } else {
-            testsIconEl.textContent = '✗';
-            testsIconEl.className = 'summary-icon failed';
-            testsLabelEl.textContent = 'Tests Not Run';
+            baseTestsIconEl.textContent = '⏭️';
+            baseTestsIconEl.className = 'summary-icon skipped';
+            baseTestsLabelEl.textContent = 'Base Tests Not Run';
+            baseTestsLabelEl.style.cursor = 'default';
+            baseTestsLabelEl.onclick = null;
+        }
+
+        // Patch tests status - only show if tests actually ran
+        const patchTestsItem = testsIconEl.parentElement;
+        if (checkOnly || !testsExecuted) {
+            // Hide patch tests line - details shown in results below
+            patchTestsItem.style.display = 'none';
+        } else {
+            patchTestsItem.style.display = 'flex';
+            testsIconEl.textContent = '🧪';
+            testsIconEl.className = 'summary-icon success';
+            testsLabelEl.textContent = 'Patch Tests Ran';
         }
     }
 

@@ -44,6 +44,8 @@ class ValidationResult:
     error: Optional[str] = None
     container_cached: bool = False
     tests_executed: bool = False
+    base_tests_passed: Optional[bool] = None
+    base_test_output: Optional[str] = None
 
 
 def extract_value(field):
@@ -255,6 +257,15 @@ def validate_task(annotation_data: dict, run_tests: bool = True) -> ValidationRe
         )
 
     try:
+        # Run base tests first (before any patches) to verify test setup
+        base_tests_passed = None
+        base_test_output = None
+
+        if run_tests:
+            print(f"Running base tests (no patches)...")
+            base_tests_passed, base_test_output = run_tests_in_container(container_name, test_scripts)
+            print(f"Base tests {'passed' if base_tests_passed else 'failed'}")
+
         # Find all patch fields
         patch_keys = [
             key for key in annotation_data.keys()
@@ -341,7 +352,9 @@ def validate_task(annotation_data: dict, run_tests: bool = True) -> ValidationRe
             } for r in patch_results],
             error=None,
             container_cached=container_cached,
-            tests_executed=tests_executed
+            tests_executed=tests_executed,
+            base_tests_passed=base_tests_passed,
+            base_test_output=base_test_output
         )
 
     finally:
@@ -381,6 +394,8 @@ def validate():
             "container_built": result.container_built,
             "container_cached": result.container_cached,
             "tests_executed": result.tests_executed,
+            "base_tests_passed": result.base_tests_passed,
+            "base_test_output": result.base_test_output,
             "patch_results": result.patch_results,
             "error": result.error
         })
