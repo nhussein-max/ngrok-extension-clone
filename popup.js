@@ -133,56 +133,31 @@ function displayLoadedData(data) {
 
     // Update dockerfile status
     const dockerfileIcon = document.getElementById('dockerfile-icon');
-    const dockerfileStatus = document.getElementById('dockerfile-status');
-    if (hasDockerfile) {
-        dockerfileIcon.textContent = '✓';
-        dockerfileIcon.className = 'data-icon loaded';
-        dockerfileStatus.textContent = 'Loaded';
-        dockerfileStatus.className = 'data-status loaded';
-    } else {
-        dockerfileIcon.textContent = '✗';
-        dockerfileIcon.className = 'data-icon missing';
-        dockerfileStatus.textContent = 'Missing';
-        dockerfileStatus.className = 'data-status missing';
-    }
+    dockerfileIcon.textContent = hasDockerfile ? '✓' : '✗';
+    dockerfileIcon.className = `data-icon ${hasDockerfile ? 'loaded' : 'missing'}`;
 
     // Update test scripts status
     const testscriptsIcon = document.getElementById('testscripts-icon');
-    const testscriptsStatus = document.getElementById('testscripts-status');
-    if (hasTestScripts) {
-        testscriptsIcon.textContent = '✓';
-        testscriptsIcon.className = 'data-icon loaded';
-        testscriptsStatus.textContent = 'Loaded';
-        testscriptsStatus.className = 'data-status loaded';
-    } else {
-        testscriptsIcon.textContent = '✗';
-        testscriptsIcon.className = 'data-icon missing';
-        testscriptsStatus.textContent = 'Missing';
-        testscriptsStatus.className = 'data-status missing';
-    }
+    testscriptsIcon.textContent = hasTestScripts ? '✓' : '✗';
+    testscriptsIcon.className = `data-icon ${hasTestScripts ? 'loaded' : 'missing'}`;
 
     // Update patches status
     const patchesIcon = document.getElementById('patches-icon');
     const patchesStatus = document.getElementById('patches-status');
     const patchesList = document.getElementById('patches-list');
 
-    if (hasPatches) {
-        patchesIcon.textContent = '✓';
-        patchesIcon.className = 'data-icon loaded';
-        patchesStatus.textContent = `${patchKeys.length} found`;
-        patchesStatus.className = 'data-status loaded';
+    patchesIcon.textContent = hasPatches ? '✓' : '✗';
+    patchesIcon.className = `data-icon ${hasPatches ? 'loaded' : 'missing'}`;
+    patchesStatus.textContent = patchKeys.length.toString();
+    patchesStatus.className = `data-status ${hasPatches ? 'loaded' : 'missing'}`;
 
-        // Show patch names
+    if (hasPatches) {
         patchesList.classList.remove('hidden');
         patchesList.innerHTML = patchKeys.map(key => {
             const name = key.replace('_diff', '').replace('_patch', '');
             return `<span class="patch-tag">${escapeHtml(name)}</span>`;
         }).join('');
     } else {
-        patchesIcon.textContent = '✗';
-        patchesIcon.className = 'data-icon missing';
-        patchesStatus.textContent = '0 found';
-        patchesStatus.className = 'data-status missing';
         patchesList.classList.add('hidden');
     }
 
