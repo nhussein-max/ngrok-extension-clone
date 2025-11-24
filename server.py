@@ -151,7 +151,7 @@ def apply_patch_in_container(container_id: str, patch_content: str, target_dir: 
             return False, f"Failed to copy patch: {result.stderr}"
 
         # Apply patch
-        apply_cmd = f"{CONTAINER_ENGINE} exec {container_id} bash -c 'cd {target_dir} && git apply /tmp/patch.patch'"
+        apply_cmd = f"{CONTAINER_ENGINE} exec {container_id} bash -c 'cd {target_dir} && git apply --whitespace=fix /tmp/patch.patch'"
         apply_result = subprocess.run(apply_cmd, shell=True, capture_output=True, text=True)
 
         if apply_result.returncode != 0:
@@ -172,7 +172,7 @@ def revert_patch_in_container(container_id: str, patch_content: str, target_dir:
         copy_cmd = f"{CONTAINER_ENGINE} cp {patch_file} {container_id}:/tmp/patch.patch"
         subprocess.run(copy_cmd, shell=True, capture_output=True, text=True)
 
-        revert_cmd = f"{CONTAINER_ENGINE} exec {container_id} bash -c 'cd {target_dir} && git apply -R /tmp/patch.patch'"
+        revert_cmd = f"{CONTAINER_ENGINE} exec {container_id} bash -c 'cd {target_dir} && git apply -R --whitespace=fix /tmp/patch.patch'"
         result = subprocess.run(revert_cmd, shell=True, capture_output=True, text=True)
 
         return result.returncode == 0
