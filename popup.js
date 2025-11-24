@@ -20,6 +20,12 @@ document.addEventListener('DOMContentLoaded', function() {
     if (checkButton) {
         checkButton.addEventListener('click', () => runValidation(true));
     }
+
+    // Setup More Info toggle
+    const moreInfoToggle = document.getElementById('more-info-toggle');
+    if (moreInfoToggle) {
+        moreInfoToggle.addEventListener('click', toggleMoreInfo);
+    }
 });
 
 function checkServerStatus() {
@@ -157,6 +163,9 @@ function displayLoadedData(data) {
         patchesStatus.className = 'data-status missing';
         patchesList.classList.add('hidden');
     }
+
+    // Display More Info (rubrics, ranking explanation)
+    displayMoreInfo(data);
 
     updateRunButton();
 }
@@ -524,3 +533,117 @@ chrome.storage.onChanged.addListener(function(changes, area) {
         });
     }
 });
+
+// More Info toggle
+function toggleMoreInfo() {
+    const content = document.getElementById('more-info-content');
+    const arrow = document.getElementById('more-info-arrow');
+
+    if (content.classList.contains('hidden')) {
+        content.classList.remove('hidden');
+        arrow.classList.add('expanded');
+    } else {
+        content.classList.add('hidden');
+        arrow.classList.remove('expanded');
+    }
+}
+
+// Display rubrics and ranking explanation
+function displayMoreInfo(data) {
+    const moreInfoSection = document.getElementById('more-info-section');
+    const rubricsSection = document.getElementById('rubrics-section');
+    const rubricsList = document.getElementById('rubrics-list');
+    const rubricsCount = document.getElementById('rubrics-count');
+    const rankingSection = document.getElementById('ranking-section');
+    const rankingContent = document.getElementById('ranking-content');
+
+    // Extract rubrics
+    const rubrics = data.rubrics?.items || [];
+
+    // Extract ranking explanation
+    const rankingExplanation = extractValue(data.overall_preference_explanation);
+
+    // Check if we have any info to show
+    if (rubrics.length === 0 && !rankingExplanation) {
+        moreInfoSection.classList.add('hidden');
+        return;
+    }
+
+    moreInfoSection.classList.remove('hidden');
+
+    // Display rubrics
+    if (rubrics.length > 0) {
+        rubricsSection.classList.remove('hidden');
+        rubricsCount.textContent = `(${rubrics.length})`;
+
+        let invalidCount = 0;
+        rubricsList.innerHTML = rubrics.map((rubric, index) => {
+            const text = rubric.text || '';
+            const { type, isValid, cleanText } = parseRubric(text);
+
+            if (!isValid) invalidCount++;
+
+            const itemClass = isValid ? type : 'invalid';
+            const tagClass = isValid ? type : 'invalid';
+            const tagText = isValid ? `[${type.charAt(0).toUpperCase() + type.slice(1)}]` : '[Missing Tag]';
+
+            let html = `<div class="rubric-item ${itemClass}">`;
+
+            if (!isValid) {
+                html += `<div class="rubric-warning">⚠️ Missing [Explicit] or [Implicit] tag</div>`;
+            }
+
+            html += `<span class="rubric-tag ${tagClass}">${tagText}</span>`;
+            html += `<span>${escapeHtml(cleanText)}</span>`;
+            html += `</div>`;
+
+            return html;
+        }).join('');
+
+        // Update count with warning if invalid rubrics
+        if (invalidCount > 0) {
+            rubricsCount.textContent = `(${rubrics.length}, ${invalidCount} invalid)`;
+            rubricsCount.style.background = '#f8d7da';
+            rubricsCount.style.color = '#721c24';
+        } else {
+            rubricsCount.style.background = '';
+            rubricsCount.style.color = '';
+        }
+    } else {
+        rubricsSection.classList.add('hidden');
+    }
+
+    // Display ranking explanation
+    if (rankingExplanation) {
+        rankingSection.classList.remove('hidden');
+        rankingContent.textContent = rankingExplanation;
+    } else {
+        rankingSection.classList.add('hidden');
+    }
+}
+
+// Parse rubric text to extract type and validate format
+function parseRubric(text) {
+    const explicitMatch = text.match(/^\s*\[Explicit\]/i);
+    const implicitMatch = text.match(/^\s*\[Implicit\]/i);
+
+    if (explicitMatch) {
+        return {
+            type: 'explicit',
+            isValid: true,
+            cleanText: text.replace(/^\s*\[Explicit\]\s*/i, '').trim()
+        };
+    } else if (implicitMatch) {
+        return {
+            type: 'implicit',
+            isValid: true,
+            cleanText: text.replace(/^\s*\[Implicit\]\s*/i, '').trim()
+        };
+    } else {
+        return {
+            type: 'unknown',
+            isValid: false,
+            cleanText: text.trim()
+        };
+    }
+}
