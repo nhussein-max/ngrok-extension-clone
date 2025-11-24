@@ -74,6 +74,9 @@ def build_container(image_name: str, dockerfile_txt: str) -> tuple[bool, str]:
 
 def start_container(image_name: str, container_name: str) -> tuple[bool, str]:
     """Start a container in the background."""
+    # Remove any existing container with the same name first
+    subprocess.run(f"{CONTAINER_ENGINE} rm -f {container_name}", shell=True, capture_output=True)
+
     run_cmd = f"{CONTAINER_ENGINE} run -d --name {container_name} {image_name} tail -f /dev/null"
     result = subprocess.run(run_cmd, shell=True, capture_output=True, text=True)
 
