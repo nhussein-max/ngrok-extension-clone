@@ -190,9 +190,37 @@ function displayLoadedData(data) {
 
     if (hasPatches) {
         patchesList.classList.remove('hidden');
+
+        // Check if gold_patch exists for similarity calculation
+        const hasGoldPatch = data.gold_patch;
+        const goldPatchContent = hasGoldPatch ? extractValue(data.gold_patch) : null;
+        const isGoldPatchValid = goldPatchContent && goldPatchContent !== 'NA';
+
         patchesList.innerHTML = patchKeys.map(key => {
             const name = key.replace('_diff', '').replace('_patch', '');
-            return `<span class="patch-tag">${escapeHtml(name)}</span>`;
+            let similarityBadge = '';
+
+            // Calculate similarity if gold_patch exists
+            if (isGoldPatchValid) {
+                try {
+                    const patchContent = extractValue(data[key]);
+                    if (patchContent && patchContent !== 'NA') {
+                        const similarity = calculateDiffSimilarity(goldPatchContent, patchContent);
+
+                        // Determine color class
+                        let colorClass = '';
+                        if (similarity >= 80) colorClass = 'high';
+                        else if (similarity >= 50) colorClass = 'medium';
+                        else colorClass = 'low';
+
+                        similarityBadge = ` <span class="patch-tag-similarity ${colorClass}">${similarity}%</span>`;
+                    }
+                } catch (error) {
+                    console.error(`Error calculating similarity for ${name}:`, error);
+                }
+            }
+
+            return `<span class="patch-tag">${escapeHtml(name)}${similarityBadge}</span>`;
         }).join('');
     } else {
         patchesList.classList.add('hidden');
@@ -337,7 +365,64 @@ function showError(message) {
     `;
 }
 
+/**
+ * Calculate diff similarity between golden patch and model patch
+ * Based on line-by-line comparison algorithm
+ * @param {string} goldenDiff - The reference/golden patch content
+ * @param {string} modelDiff - The patch to compare against golden
+ * @returns {number} Similarity percentage (0-100)
+ */
+function calculateDiffSimilarity(goldenDiff, modelDiff) {
+    // Handle edge cases
+    if (!goldenDiff || !modelDiff) return 0;
+    if (goldenDiff === modelDiff) return 100;
+
+    // Split into lines and normalize (trim whitespace, filter empty lines)
+    const goldenLines = goldenDiff.split('\n').map(line => line.trim()).filter(line => line);
+    const modelLines = modelDiff.split('\n').map(line => line.trim()).filter(line => line);
+
+    // Handle empty diffs
+    if (goldenLines.length === 0) return modelLines.length === 0 ? 100 : 0;
+    if (modelLines.length === 0) return 0;
+
+    // Create frequency map for model lines (handle duplicates)
+    const modelLineMap = new Map();
+    modelLines.forEach(line => {
+        modelLineMap.set(line, (modelLineMap.get(line) || 0) + 1);
+    });
+
+    // Count unmatched lines from golden diff
+    let unmatchedCount = 0;
+    for (const goldenLine of goldenLines) {
+        const count = modelLineMap.get(goldenLine) || 0;
+        if (count > 0) {
+            // Line matched, decrement count
+            modelLineMap.set(goldenLine, count - 1);
+        } else {
+            // Line not found in model
+            unmatchedCount++;
+        }
+    }
+
+    // Calculate similarity: (matched lines) / (total golden lines) * 100
+    const similarity = ((goldenLines.length - unmatchedCount) / goldenLines.length) * 100;
+    return Math.round(similarity);
+}
+
 function displayResults(results, checkOnly = false) {
+    // Fetch annotation data from Chrome storage to enable similarity comparison
+    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+        const currentTabId = tabs[0].id;
+        const tabKey = `annotationData_${currentTabId}`;
+
+        chrome.storage.local.get([tabKey], function(result) {
+            const annotationData = result[tabKey];
+            renderResultsWithData(results, checkOnly, annotationData);
+        });
+    });
+}
+
+function renderResultsWithData(results, checkOnly = false, annotationData = null) {
     const { errors, success, timestamp, patchResults, validationType, containerBuilt, containerCached, testsExecuted, baseTestsPassed, baseTestOutput } = results;
 
     const statusEl = document.getElementById('status');
@@ -512,11 +597,39 @@ function displayResults(results, checkOnly = false) {
 
             const hasOutput = patch.test_output && patch.test_output.trim();
 
+            // Calculate similarity if gold_patch exists
+            let similarityHtml = '';
+            if (annotationData && annotationData.gold_patch) {
+                const goldPatchContent = extractValue(annotationData.gold_patch);
+                if (goldPatchContent && goldPatchContent !== 'NA') {
+                    try {
+                        const currentPatchContent = extractValue(annotationData[patch.patch_key]);
+                        if (currentPatchContent && currentPatchContent !== 'NA') {
+                            const similarity = calculateDiffSimilarity(goldPatchContent, currentPatchContent);
+
+                            // Determine color class based on similarity threshold
+                            let colorClass = '';
+                            if (similarity >= 80) {
+                                colorClass = 'high';
+                            } else if (similarity >= 50) {
+                                colorClass = 'medium';
+                            } else {
+                                colorClass = 'low';
+                            }
+
+                            similarityHtml = ` <span class="patch-similarity ${colorClass}">${similarity}%</span>`;
+                        }
+                    } catch (error) {
+                        console.error(`Error calculating similarity for ${patchName}:`, error);
+                    }
+                }
+            }
+
             const patchEl = document.createElement('div');
             patchEl.className = `patch-item ${statusClass}`;
             patchEl.innerHTML = `
                 <span class="patch-icon">${statusIcon}</span>
-                <span class="patch-name">${escapeHtml(patchName)}</span>
+                <span class="patch-name">${escapeHtml(patchName)}${similarityHtml}</span>
                 <span class="patch-status">${statusText}${hasOutput ? ' (click for details)' : ''}</span>
                 ${patch.local_path ? `<button class="vscode-btn">VS Code</button>` : ''}
             `;

@@ -166,6 +166,34 @@
             font-family: monospace;
         }
 
+        /* Patch tag similarity badge (for initial display before validation) */
+        .patch-tag-similarity {
+            font-size: 9px;
+            font-weight: 600;
+            padding: 1px 4px;
+            border-radius: 2px;
+            margin-left: 4px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        .patch-tag-similarity.high {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .patch-tag-similarity.medium {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeeba;
+        }
+
+        .patch-tag-similarity.low {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
         /* Run Button */
         .run-section {
             margin-bottom: 16px;
@@ -368,6 +396,35 @@
         .vscode-btn:disabled {
             background: #ccc;
             cursor: wait;
+        }
+
+        /* Patch similarity percentage styling */
+        .patch-similarity {
+            display: inline-block;
+            margin-left: 8px;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        .patch-similarity.high {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .patch-similarity.medium {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeeba;
+        }
+
+        .patch-similarity.low {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
         }
 
         .patch-item.clickable {
