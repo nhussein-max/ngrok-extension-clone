@@ -206,6 +206,27 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return true;
     }
 
+    // Open patch in VS Code (instant - uses cached path)
+    if (message.type === 'OPEN_PATCH_IN_VSCODE') {
+        const localPath = message.localPath;
+
+        if (!localPath) {
+            sendResponse({ success: false, error: 'No cached path - run validation first' });
+            return true;
+        }
+
+        fetch(`${VALIDATION_SERVER_URL}/open-patch`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ local_path: localPath })
+        })
+        .then(response => response.json())
+        .then(result => sendResponse(result))
+        .catch(error => sendResponse({ success: false, error: error.message }));
+
+        return true;
+    }
+
     // Reset badge
     if (message.type === 'RESET_BADGE') {
         chrome.action.setBadgeText({ text: '', tabId: sender.tab.id });

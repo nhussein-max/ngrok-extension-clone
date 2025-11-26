@@ -597,39 +597,11 @@ function renderResultsWithData(results, checkOnly = false, annotationData = null
 
             const hasOutput = patch.test_output && patch.test_output.trim();
 
-            // Calculate similarity if gold_patch exists
-            let similarityHtml = '';
-            if (annotationData && annotationData.gold_patch) {
-                const goldPatchContent = extractValue(annotationData.gold_patch);
-                if (goldPatchContent && goldPatchContent !== 'NA') {
-                    try {
-                        const currentPatchContent = extractValue(annotationData[patch.patch_key]);
-                        if (currentPatchContent && currentPatchContent !== 'NA') {
-                            const similarity = calculateDiffSimilarity(goldPatchContent, currentPatchContent);
-
-                            // Determine color class based on similarity threshold
-                            let colorClass = '';
-                            if (similarity >= 80) {
-                                colorClass = 'high';
-                            } else if (similarity >= 50) {
-                                colorClass = 'medium';
-                            } else {
-                                colorClass = 'low';
-                            }
-
-                            similarityHtml = ` <span class="patch-similarity ${colorClass}">${similarity}%</span>`;
-                        }
-                    } catch (error) {
-                        console.error(`Error calculating similarity for ${patchName}:`, error);
-                    }
-                }
-            }
-
             const patchEl = document.createElement('div');
             patchEl.className = `patch-item ${statusClass}`;
             patchEl.innerHTML = `
                 <span class="patch-icon">${statusIcon}</span>
-                <span class="patch-name">${escapeHtml(patchName)}${similarityHtml}</span>
+                <span class="patch-name">${escapeHtml(patchName)}</span>
                 <span class="patch-status">${statusText}${hasOutput ? ' (click for details)' : ''}</span>
                 ${patch.local_path ? `<button class="vscode-btn">VS Code</button>` : ''}
             `;
