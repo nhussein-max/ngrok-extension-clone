@@ -6,8 +6,8 @@ A local Flask server that validates code patches by building Docker/Podman
 containers and running test scripts against applied patches.
 """
 
-import json
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -151,7 +151,7 @@ def apply_patch_in_container(container_id: str, patch_content: str, target_dir: 
             return False, f"Failed to copy patch: {result.stderr}"
 
         # Apply patch
-        apply_cmd = f'{CONTAINER_ENGINE} exec {container_id} bash -c "cd {target_dir} && git apply --whitespace=fix /tmp/patch.patch"'
+        apply_cmd = f'{CONTAINER_ENGINE} exec {container_id} bash -c "cd {target_dir} && git apply --ignore-whitespace --whitespace=fix /tmp/patch.patch"'
         apply_result = subprocess.run(apply_cmd, shell=True, capture_output=True, text=True)
 
         if apply_result.returncode != 0:
@@ -160,6 +160,24 @@ def apply_patch_in_container(container_id: str, patch_content: str, target_dir: 
         return True, ""
     finally:
         os.unlink(patch_file)
+
+
+def get_new_files_from_patch(patch_content: str) -> list[str]:
+    """Extract list of new files created by a patch."""
+    # Match: diff --git a/... b/<filepath> followed by 'new file mode' before next diff
+    pattern = r'diff --git a/.+ b/(.+)\nnew file mode'
+    return re.findall(pattern, patch_content)
+
+
+def remove_new_files_in_container(container_id: str, new_files: list[str], target_dir: str = "/testbed") -> bool:
+    """Remove newly created files from the container."""
+    if not new_files:
+        return True
+
+    files_to_remove = ' '.join(f'"{target_dir}/{f}"' for f in new_files)
+    rm_cmd = f'{CONTAINER_ENGINE} exec {container_id} bash -c "rm -f {files_to_remove}"'
+    result = subprocess.run(rm_cmd, shell=True, capture_output=True, text=True)
+    return result.returncode == 0
 
 
 def revert_patch_in_container(container_id: str, patch_content: str, target_dir: str = "/testbed") -> bool:
@@ -172,8 +190,13 @@ def revert_patch_in_container(container_id: str, patch_content: str, target_dir:
         copy_cmd = f"{CONTAINER_ENGINE} cp {patch_file} {container_id}:/tmp/patch.patch"
         subprocess.run(copy_cmd, shell=True, capture_output=True, text=True)
 
-        revert_cmd = f'{CONTAINER_ENGINE} exec {container_id} bash -c "cd {target_dir} && git apply -R --whitespace=fix /tmp/patch.patch"'
+        revert_cmd = f'{CONTAINER_ENGINE} exec {container_id} bash -c "cd {target_dir} && git apply -R --ignore-whitespace --whitespace=fix /tmp/patch.patch"'
         result = subprocess.run(revert_cmd, shell=True, capture_output=True, text=True)
+
+        # Also remove any new files created by the patch (git apply -R doesn't delete them)
+        new_files = get_new_files_from_patch(patch_content)
+        if new_files:
+            remove_new_files_in_container(container_id, new_files, target_dir)
 
         return result.returncode == 0
     finally:
