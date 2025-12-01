@@ -139,7 +139,11 @@ def stop_and_remove_container(container_name: str):
 
 def apply_patch_in_container(container_id: str, patch_content: str, target_dir: str = "/testbed") -> tuple[bool, str]:
     """Apply a patch inside the container. Returns (success, error_message)."""
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".patch", delete=False) as f:
+    patch_content = patch_content.replace("\r\n", "\n").replace("\r", "\n")
+    if not patch_content.endswith("\n"):
+        patch_content += "\n"
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".patch", delete=False, newline="\n", encoding="utf-8") as f:
         f.write(patch_content)
         patch_file = f.name
 
@@ -182,7 +186,11 @@ def remove_new_files_in_container(container_id: str, new_files: list[str], targe
 
 def revert_patch_in_container(container_id: str, patch_content: str, target_dir: str = "/testbed") -> bool:
     """Revert a patch inside the container."""
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".patch", delete=False) as f:
+    patch_content = patch_content.replace("\r\n", "\n").replace("\r", "\n")
+    if not patch_content.endswith("\n"):
+        patch_content += "\n"
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".patch", delete=False, newline="\n", encoding="utf-8") as f:
         f.write(patch_content)
         patch_file = f.name
 
@@ -205,7 +213,7 @@ def revert_patch_in_container(container_id: str, patch_content: str, target_dir:
 
 def run_tests_in_container(container_id: str, test_script: str, target_dir: str = "/testbed") -> tuple[bool, str]:
     """Run test script inside the container."""
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".sh", delete=False) as f:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".sh", delete=False, newline="\n") as f:
         f.write(test_script)
         script_file = f.name
 
