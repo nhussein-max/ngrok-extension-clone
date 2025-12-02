@@ -350,6 +350,9 @@ def validate_task(annotation_data: dict, run_tests: bool = True) -> ValidationRe
             if not patch_content or patch_content == "NA":
                 continue
 
+            if run_tests:
+                tests_passed, test_output = run_tests_in_container(container_name, test_scripts)
+
             # Apply patch
             applied, apply_error = apply_patch_in_container(container_name, patch_content)
             
@@ -372,8 +375,6 @@ def validate_task(annotation_data: dict, run_tests: bool = True) -> ValidationRe
 
             # Run tests if requested
             if run_tests:
-                tests_passed, test_output = run_tests_in_container(container_name, test_scripts)
-
                 patch_results.append(PatchResult(
                     patch_key=patch_key,
                     applied=True,
