@@ -232,6 +232,21 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return true;
     }
 
+    // Handle extracted page data
+    if (message.type === 'PAGE_DATA_EXTRACTED') {
+        console.log('L1 Patch Validator: Received page data', message.data);
+
+        const tabId = sender.tab.id;
+        const dataKey = `pageData_${tabId}`;
+
+        // Store the page data
+        chrome.storage.local.set({
+            [dataKey]: message.data
+        });
+
+        return true;
+    }
+
     // Reset badge
     if (message.type === 'RESET_BADGE') {
         chrome.action.setBadgeText({ text: '', tabId: sender.tab.id });

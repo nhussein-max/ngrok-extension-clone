@@ -18,8 +18,76 @@ function injectNetworkMonitor() {
     (document.head || document.documentElement).appendChild(injectedScript);
 }
 
+// Extract page data function
+function extractPageData() {
+    const result = {};
+
+    // Find all paragraphs containing bracketed text like [Est Time Spent]
+    const questionElements = document.querySelectorAll('p[dir="auto"][class*="text-base"][class*="leading-relaxed"]');
+
+    questionElements.forEach(questionEl => {
+        const text = questionEl.textContent || '';
+        const bracketMatch = text.match(/\[([^\]]+)\]/);
+
+        if (bracketMatch) {
+            const questionName = bracketMatch[1];
+
+            // Find the closest common parent that contains both the question and textarea
+            let container = questionEl.closest('div[class*="flex"][class*="flex-col"]');
+
+            if (!container) {
+                // Try broader search
+                container = questionEl.closest('div[style*="opacity"]') ||
+                           questionEl.closest('div[class*="rounded"]') ||
+                           questionEl.closest('div[class*="bg-"]');
+            }
+
+            if (container) {
+                // Find the visible textarea within this container (not hidden/aria-hidden)
+                const textarea = container.querySelector('textarea:not([aria-hidden]):not([readonly])');
+
+                if (textarea) {
+                    const value = textarea.value || '';
+                    result[questionName] = value;
+                    console.log(`Extracted: ${questionName} = "${value}"`);
+                }
+            }
+        }
+    });
+
+    console.log('Full extracted data:', result);
+    return result;
+}
+
 // Initial injection
 injectNetworkMonitor();
+
+// Extract and send page data
+function sendPageData() {
+    const pageData = extractPageData();
+
+    if (Object.keys(pageData).length > 0) {
+        chrome.runtime.sendMessage({
+            type: 'PAGE_DATA_EXTRACTED',
+            data: pageData
+        });
+    }
+}
+
+// Extract data immediately and on content changes
+sendPageData();
+
+// Also extract when DOM changes (for dynamic content)
+const observer = new MutationObserver(() => {
+    // Debounce to avoid too many calls
+    clearTimeout(window.extractTimeout);
+    window.extractTimeout = setTimeout(sendPageData, 1000);
+});
+
+observer.observe(document.body, {
+    childList: true,
+    subtree: true
+});
 
 // Re-inject on page navigation (SPA support)
 let lastUrl = location.href;
