@@ -95,6 +95,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             const existingData = result[dataKey] || {};
             const mergedData = { ...existingData, ...message.data };
 
+            // Special handling for _diff and _patch fields - only use new data, don't merge
+            Object.keys(mergedData).forEach(key => {
+                if (key.endsWith('_diff') || key.endsWith('_patch')) {
+                    // For diff/patch fields, only keep the new data value (don't merge with existing)
+                    if (message.data.hasOwnProperty(key)) {
+                        mergedData[key] = message.data[key];
+                    } else {
+                        // If the new data doesn't have this field, remove it from merged data
+                        delete mergedData[key];
+                    }
+                }
+            });
+
             // Store the merged annotation data
             chrome.storage.local.set({
                 [dataKey]: mergedData
