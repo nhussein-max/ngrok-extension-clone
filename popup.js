@@ -32,7 +32,83 @@ document.addEventListener('DOMContentLoaded', function() {
     if (fetchDataBtn) {
         fetchDataBtn.addEventListener('click', fetchDataFromPage);
     }
+
+    // Setup Reload Data button
+    const reloadDataBtn = document.getElementById('reload-data-btn');
+    if (reloadDataBtn) {
+        reloadDataBtn.addEventListener('click', reloadPageData);
+    }
 });
+
+function reloadPageData() {
+    const reloadBtn = document.getElementById('reload-data-btn');
+    if (reloadBtn) {
+        reloadBtn.disabled = true;
+        reloadBtn.textContent = '⏳';
+    }
+
+    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+        if (!tabs || tabs.length === 0) {
+            console.log('No active tab found');
+            if (reloadBtn) {
+                reloadBtn.disabled = false;
+                reloadBtn.textContent = '🔄';
+            }
+            return;
+        }
+
+        const tab = tabs[0];
+
+        // Try to inject content script first (in case it's not loaded yet)
+        chrome.scripting.executeScript({
+            target: { tabId: tab.id },
+            files: ['content.js']
+        }).then(() => {
+            console.log('Content script injected/verified');
+            // Wait a moment for content script to initialize
+            setTimeout(() => {
+                sendMessageToContentScript(tab.id, reloadBtn);
+            }, 100);
+        }).catch((error) => {
+            console.log('Could not inject content script:', error);
+            // Content script might already be loaded, try sending message anyway
+            sendMessageToContentScript(tab.id, reloadBtn);
+        });
+    });
+}
+
+function sendMessageToContentScript(tabId, reloadBtn) {
+    // Send message to content script to trigger data extraction
+    chrome.tabs.sendMessage(tabId, {
+        type: 'TRIGGER_PAGE_DATA_EXTRACTION'
+    }, function(response) {
+        // Check for errors (content script not available)
+        if (chrome.runtime.lastError) {
+            console.log('Content script not available:', chrome.runtime.lastError.message);
+            console.log('Try refreshing the page first, then use this button');
+            if (reloadBtn) {
+                reloadBtn.disabled = false;
+                reloadBtn.textContent = '🔄';
+            }
+            // Just reload any existing stored data
+            loadStoredData();
+            return;
+        }
+
+        if (reloadBtn) {
+            reloadBtn.disabled = false;
+            reloadBtn.textContent = '🔄';
+        }
+
+        if (response && response.success) {
+            console.log('Data extraction successful');
+            // Data extraction was triggered, UI will update via storage changes
+            setTimeout(() => loadStoredData(), 500); // Small delay to allow data to be stored
+        } else {
+            console.log('Failed to trigger page data extraction');
+        }
+    });
+}
 
 function fetchDataFromPage() {
     const fetchBtn = document.getElementById('fetch-data-btn');
@@ -256,7 +332,7 @@ function updateRunButton() {
                 }
                 return;
             }
-
+            console.log('Data loaded:', data);
             const dockerfile = extractValue(data.dockerfile);
             const testScripts = extractValue(data.test_scripts);
 

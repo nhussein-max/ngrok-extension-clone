@@ -231,6 +231,38 @@
             cursor: not-allowed;
         }
 
+        /* Reload Button */
+        .reload-btn {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 4px 6px;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: #495057;
+            margin-left: 8px;
+            min-width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .reload-btn:hover {
+            background: #e9ecef;
+            border-color: #adb5bd;
+        }
+
+        .reload-btn:active {
+            transform: scale(0.95);
+        }
+
+        .reload-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
         /* Status */
         .status {
             display: flex;
@@ -664,6 +696,7 @@
         <div class="logo">🔍</div>
         <div class="title">L1 Patch Validator</div>
         <div id="server-status" class="server-status checking">Checking...</div>
+        <button id="reload-data-btn" class="reload-btn" title="Reload data from current page">🔄</button>
     </div>
 
     <!-- No Data State -->
