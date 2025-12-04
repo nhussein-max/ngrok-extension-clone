@@ -80,12 +80,43 @@ function extractPageData() {
             }
 
             if (container) {
-                // Find the visible textarea within this container (not hidden/aria-hidden)
+                // First, try to find a visible textarea within this container
                 const textarea = container.querySelector('textarea:not([aria-hidden]):not([readonly])');
 
                 if (textarea) {
                     const value = textarea.value || '';
                     result[questionName] = value;
+                    console.log(`Extracted textarea: ${questionName} = "${value}"`);
+                } else {
+                    // If no textarea, look for checked radio buttons
+                    const checkedRadio = container.querySelector('input[type="radio"]:checked');
+
+                    if (checkedRadio) {
+                        // Get the associated label text
+                        const label = checkedRadio.closest('label');
+                        if (label) {
+                            // Find the descriptive text in the label (usually in a p element)
+                            const labelText = label.querySelector('p[dir="auto"]')?.textContent ||
+                                            label.textContent?.trim() ||
+                                            '';
+
+                            if (labelText) {
+                                result[questionName] = labelText;
+                                console.log(`Extracted radio: ${questionName} = "${labelText}"`);
+                            }
+                        }
+                    } else {
+                        // If no radio buttons, look for dropdown buttons (buttons with span.truncate containing selected value)
+                        const dropdownButton = container.querySelector('button[aria-haspopup] span.truncate');
+
+                        if (dropdownButton) {
+                            const selectedValue = dropdownButton.textContent?.trim() || '';
+                            if (selectedValue) {
+                                result[questionName] = selectedValue;
+                                console.log(`Extracted dropdown: ${questionName} = "${selectedValue}"`);
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -101,10 +132,23 @@ function formatPageData(data) {
     for (const [key, value] of Object.entries(data)) {
         // Convert to lowercase and replace spaces with underscores
         let formattedKey = key.toLowerCase().replace(/\s+/g, '_');
-        if (formattedKey === 'test_script') formattedKey = 'test_scripts'; // This is the name the backend expects
-        // console.log(`Extracted: ${formattedKey} = "${value}"`);
+        let formattedValue = value;
 
-        formatted[formattedKey] = value;
+        // Rename fields to match the backend expectations
+        switch (formattedKey) {
+            case 'test_script':
+                formattedKey = 'test_scripts';
+                break;
+            case 'codebase_language':
+                formattedKey = 'language';
+                break;
+            case 'ranking_explanation':
+                formattedKey = 'overall_preference_explanation';
+                break;
+        }
+
+        // Add the formatted key and value to the formatted object
+        formatted[formattedKey] = formattedValue;
     }
 
     return formatted;

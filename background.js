@@ -90,22 +90,30 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         const tabId = sender.tab.id;
         const dataKey = `annotationData_${tabId}`;
 
-        // Store the annotation data
-        chrome.storage.local.set({
-            [dataKey]: message.data
+        // Get existing data and merge with new data (new data takes priority)
+        chrome.storage.local.get([dataKey], function(result) {
+            const existingData = result[dataKey] || {};
+            const mergedData = { ...existingData, ...message.data };
+
+            // Store the merged annotation data
+            chrome.storage.local.set({
+                [dataKey]: mergedData
+            });
+
+            console.log('L1 Patch Validator: Merged data - existing keys:', Object.keys(existingData).length, 'new keys:', Object.keys(message.data).length);
+
+            // Update badge to show data is loaded (based on merged data)
+            const dockerfile = extractValue(mergedData.dockerfile);
+            const testScripts = extractValue(mergedData.test_scripts);
+
+            if (dockerfile && testScripts) {
+                chrome.action.setBadgeText({ text: '●', tabId: tabId });
+                chrome.action.setBadgeBackgroundColor({ color: '#007bff', tabId: tabId });
+            } else {
+                chrome.action.setBadgeText({ text: '○', tabId: tabId });
+                chrome.action.setBadgeBackgroundColor({ color: '#6c757d', tabId: tabId });
+            }
         });
-
-        // Update badge to show data is loaded
-        const dockerfile = extractValue(message.data.dockerfile);
-        const testScripts = extractValue(message.data.test_scripts);
-
-        if (dockerfile && testScripts) {
-            chrome.action.setBadgeText({ text: '●', tabId: tabId });
-            chrome.action.setBadgeBackgroundColor({ color: '#007bff', tabId: tabId });
-        } else {
-            chrome.action.setBadgeText({ text: '○', tabId: tabId });
-            chrome.action.setBadgeBackgroundColor({ color: '#6c757d', tabId: tabId });
-        }
 
         return true;
     }
