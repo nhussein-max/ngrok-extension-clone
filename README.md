@@ -4,7 +4,7 @@ A Chrome browser extension with a local Python server for validating code patche
 
 ## Features
 
-- **Automatic Data Capture**: Intercepts annotation data containing Dockerfiles, patches, and test scripts
+- **Data Capture**: Intercepts annotation data containing Dockerfiles, patches, and test scripts. Can also manually refresh to populate any changes made on the page. 
 - **Container-Based Validation**: Builds Docker containers and applies patches in isolated environments
 - **Two Validation Modes**:
   - **Check Patches Apply** (fast): Only verifies patches apply cleanly with `git apply`
@@ -63,6 +63,7 @@ The server runs on `http://127.0.0.1:5050`. Keep it running while using the exte
    - Dockerfile status (loaded/missing)
    - Test Scripts status (loaded/missing)
    - Detected patches
+   - Reload button to update with any changes made to the page
 
 4. **Run validation**:
    - **Check Patches Apply**: Quick check that patches apply cleanly
@@ -84,7 +85,7 @@ The server runs on `http://127.0.0.1:5050`. Keep it running while using the exte
 
 ## How It Works
 
-1. **Data Capture**: The extension injects a script that intercepts network requests containing annotation data
+1. **Data Capture**: The extension injects a script that intercepts network requests containing annotation data. The user can also refresh the data to update with any new changes made on the page
 
 2. **Container Build**: When you run validation, the server builds a Docker container from the provided Dockerfile
 
