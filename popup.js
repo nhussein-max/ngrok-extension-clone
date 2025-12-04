@@ -821,6 +821,10 @@ function toggleMoreInfo() {
 // Display rubrics and ranking explanation
 function displayMoreInfo(data) {
     const moreInfoSection = document.getElementById('more-info-section');
+    const dockerfileSection = document.getElementById('dockerfile-section');
+    const dockerfileContent = document.getElementById('dockerfile-content');
+    const testscriptsSection = document.getElementById('testscripts-section');
+    const testscriptsContent = document.getElementById('testscripts-content');
     const rubricsSection = document.getElementById('rubrics-section');
     const rubricsList = document.getElementById('rubrics-list');
     const rubricsCount = document.getElementById('rubrics-count');
@@ -828,6 +832,10 @@ function displayMoreInfo(data) {
     const scoresList = document.getElementById('scores-list');
     const rankingSection = document.getElementById('ranking-section');
     const rankingContent = document.getElementById('ranking-content');
+
+    // Extract dockerfile and test scripts
+    const dockerfile = extractValue(data.dockerfile);
+    const testScripts = extractValue(data.test_scripts);
 
     // Extract rubrics
     const rubrics = data.rubrics?.items || [];
@@ -839,16 +847,34 @@ function displayMoreInfo(data) {
     const rankingExplanation = extractValue(data.overall_preference_explanation);
 
     // Check if we have any info to show
+    const hasDockerfile = !!dockerfile;
+    const hasTestScripts = !!testScripts;
     const hasRubrics = rubrics.length > 0;
     const hasScores = Array.isArray(rankingScores) && rankingScores.length > 0;
     const hasExplanation = !!rankingExplanation;
 
-    if (!hasRubrics && !hasScores && !hasExplanation) {
+    if (!hasDockerfile && !hasTestScripts && !hasRubrics && !hasScores && !hasExplanation) {
         moreInfoSection.classList.add('hidden');
         return;
     }
 
     moreInfoSection.classList.remove('hidden');
+
+    // Display dockerfile
+    if (hasDockerfile) {
+        dockerfileSection.classList.remove('hidden');
+        dockerfileContent.innerHTML = `<div class="code-block">${escapeHtml(dockerfile)}</div>`;
+    } else {
+        dockerfileSection.classList.add('hidden');
+    }
+
+    // Display test scripts
+    if (hasTestScripts) {
+        testscriptsSection.classList.remove('hidden');
+        testscriptsContent.innerHTML = `<div class="code-block">${escapeHtml(testScripts)}</div>`;
+    } else {
+        testscriptsSection.classList.add('hidden');
+    }
 
     // Display rubrics
     if (hasRubrics) {
