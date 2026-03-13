@@ -1,0 +1,162 @@
+diff --git a/app.py b/app.py
+index 6ca5e2a..c8ba896 100644
+--- a/app.py
++++ b/app.py
+@@ -60,10 +60,17 @@ def fire():
+         'winner': game.get_winner()
+     }
+     
+-    # If game is not over and player didn't hit, bot takes turn
++    # If game is not over and player didn't hit, bot takes turn(s)
+     if not game.is_game_over() and player_result['result'] != 'hit':
+-        bot_result = game.bot_fire()
+-        response['bot_result'] = bot_result
++        bot_results = []
++        # Bot keeps firing while it gets hits
++        while game.current_turn == 'bot' and not game.is_game_over():
++            bot_result = game.bot_fire()
++            bot_results.append(bot_result)
++            if bot_result['result'] != 'hit':
++                break
++        
++        response['bot_results'] = bot_results
+         response['game_over'] = game.is_game_over()
+         response['winner'] = game.get_winner()
+     
+diff --git a/battleship_game.py b/battleship_game.py
+index a86aa13..6f725b4 100644
+--- a/battleship_game.py
++++ b/battleship_game.py
+@@ -34,26 +34,12 @@ class Board:
+             for c in range(col, col + size):
+                 if self.grid[row][c] != '~':
+                     return False
+-                # Check for adjacent ships
+-                for dr in [-1, 0, 1]:
+-                    for dc in [-1, 0, 1]:
+-                        nr, nc = row + dr, c + dc
+-                        if (0 <= nr < self.size and 0 <= nc < self.size and 
+-                            self.grid[nr][nc] != '~'):
+-                            return False
+         else:
+             if row + size > self.size:
+                 return False
+             for r in range(row, row + size):
+                 if self.grid[r][col] != '~':
+                     return False
+-                # Check for adjacent ships
+-                for dr in [-1, 0, 1]:
+-                    for dc in [-1, 0, 1]:
+-                        nr, nc = r + dr, col + dc
+-                        if (0 <= nr < self.size and 0 <= nc < self.size and 
+-                            self.grid[nr][nc] != '~'):
+-                            return False
+         return True
+     
+     def place_ship(self, ship_name: str, size: int, row: int, col: int, horizontal: bool) -> bool:
+@@ -309,6 +295,8 @@ class Game:
+             return {'error': 'Not player turn'}
+         
+         result = self.bot_board.receive_shot(row, col)
++        result['row'] = row
++        result['col'] = col
+         
+         if self.bot_board.all_ships_sunk():
+             self.winner = 'player'
+diff --git a/templates/index.html b/templates/index.html
+index e7a6786..592a0b1 100644
+--- a/templates/index.html
++++ b/templates/index.html
+@@ -367,6 +367,7 @@
+                 if (data.status === 'success') {
+                     gameState.gameId = data.game_id;
+                     gameState.placedShips = [];
++                    gameState.playerTurn = true;
+                     showShipPlacement();
+                 }
+             })
+@@ -645,9 +646,10 @@
+             const playerResult = data.player_result;
+             
+             // Update bot board with player's shot result
+-            updateBoardCell('bot-board', playerResult.row || data.row, playerResult.col || data.col, playerResult.result);
++            updateBoardCell('bot-board', playerResult.row, playerResult.col, playerResult.result);
+             
+-            if (data.game_over) {
++            if (data.game_over && !data.bot_results) {
++                // Player won with their shot
+                 updateGameStatus(`Game Over! ${data.winner === 'player' ? 'You win!' : 'Bot wins!'} 🎉`);
+                 gameState.playerTurn = false;
+                 return;
+@@ -655,32 +657,48 @@
+             
+             if (playerResult.result === 'hit') {
+                 updateGameStatus('Hit! Fire again!');
+-            } else if (data.bot_result) {
+-                // Bot fired back
+-                const botResult = data.bot_result;
+-                updateBoardCell('player-board', botResult.row, botResult.col, botResult.result);
++                gameState.playerTurn = true;
++            } else if (data.bot_results && data.bot_results.length > 0) {
++                // Bot fired back (possibly multiple times)
++                gameState.playerTurn = false;
++                updateGameStatus('Miss! Bot\'s turn...');
+                 
+-                if (data.game_over) {
+-                    updateGameStatus(`Game Over! ${data.winner === 'player' ? 'You win!' : 'Bot wins!'} 🎉`);
+-                    gameState.playerTurn = false;
+-                } else if (botResult.result === 'hit') {
+-                    updateGameStatus('Bot hit your ship! Bot fires again...');
+-                    gameState.playerTurn = false;
++                // Display bot shots with delay
++                let delay = 1000;
++                data.bot_results.forEach((botResult, index) => {
+                     setTimeout(() => {
+-                        gameState.playerTurn = true;
+-                        updateGameStatus('Your turn! Click on enemy waters to fire.');
+-                    }, 2000);
+-                } else {
+-                    updateGameStatus('Your turn! Click on enemy waters to fire.');
+-                    gameState.playerTurn = true;
+-                }
++                        // Ensure the cell update happens
++                        const cell = document.querySelector(`#player-board [data-row="${botResult.row}"][data-col="${botResult.col}"]`);
++                        if (cell) {
++                            cell.classList.remove('water', 'ship');
++                            if (botResult.result === 'hit') {
++                                cell.classList.add('hit');
++                                cell.textContent = '💥';
++                                updateGameStatus('Bot hit your ship! Bot fires again...');
++                            } else if (botResult.result === 'miss') {
++                                cell.classList.add('miss');
++                                cell.textContent = '💧';
++                                updateGameStatus('Bot missed! Your turn!');
++                            }
++                        }
++                        
++                        // After last bot shot, check game over and restore player turn
++                        if (index === data.bot_results.length - 1) {
++                            setTimeout(() => {
++                                if (data.game_over) {
++                                    updateGameStatus(`Game Over! ${data.winner === 'player' ? 'You win!' : 'Bot wins!'} 🎉`);
++                                    gameState.playerTurn = false;
++                                } else {
++                                    gameState.playerTurn = true;
++                                    updateGameStatus('Your turn! Click on enemy waters to fire.');
++                                }
++                            }, 500);
++                        }
++                    }, delay + (index * 1500));
++                });
+             } else {
+-                updateGameStatus('Miss! Bot\'s turn...');
+-                gameState.playerTurn = false;
+-                setTimeout(() => {
+-                    gameState.playerTurn = true;
+-                    updateGameStatus('Your turn! Click on enemy waters to fire.');
+-                }, 1000);
++                updateGameStatus('Your turn! Click on enemy waters to fire.');
++                gameState.playerTurn = true;
+             }
+         }
+ 
